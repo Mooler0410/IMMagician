@@ -26,16 +26,6 @@ $(document).ready(function () {
         $('.row-offcanvas').toggleClass('active')
     });
     
-    
-    /**Time**/
-    cur_date = dateFormat(date_value)
-    document.getElementById("time_zone").innerHTML = "Date:" + cur_date
-
-    var time_slider = $('#day_slider');
-    var time_val = $("#day_val");
-    //time_slider.attr("data-slider-min", 0).attr("data-slider-max", 0).attr("data-slider-step", 1).attr("data-slider-tooltip","hide").slider({}); //attr("data-slider-value", time_val).
-    time_slider.slider({});
-    bindSimpleSliderVal(time_slider, time_val, "date_value");
 
       
     /**********************SliderBar********************************/
@@ -88,6 +78,14 @@ $(document).ready(function () {
     refr_BGdis_slider.attr("data-slider-min", 0).attr("data-slider-max", 1).attr("data-slider-step", 0.01).attr("data-slider-value", BGdis).attr("data-slider-tooltip","hide").slider({});
     bindSliderValParam (refr_BGdis_slider, refr_BGdis_val, "BGdis");
 
+    /**Time**/
+    //cur_date = dateFormat(date_value)
+    //document.getElementById("time_zone").innerHTML = "Date:" + cur_date
+    
+    var time_slider = $('#day_slider');
+    var time_val = $("#day_val");
+    time_slider.attr("data-slider-min", 0).attr("data-slider-max", 1).attr("data-slider-step", 0.1).attr("data-slider-value", date_value).attr("data-slider-tooltip","hide").slider({}); 
+    bindSliderValParam(time_slider, time_val, "date_value");
 
 
     /**Fresnel**/
@@ -344,7 +342,6 @@ function bindSliderValParam(slider, val, param){
 
     //update textarea when in slide
     slider.on("slide", function(slideEvt) {
-        console.log("wang gong thx!!!")
         window[param] = slideEvt.value;  
         val.val(window[param]);
     });
@@ -386,19 +383,20 @@ function bindSimpleSliderVal(slider, val, param){
         console.log("wang gong thx!!!")
         window[param] = slideEvt.value;  
         val.val(window[param]);
-        _cur_date = dateFormat(window[param]);
-        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
+        //_cur_date = dateFormat(window[param]);
+        //document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
     });
     
-    slider.on("change", function() {
-        console.log("wang gong thx！！！!!!")
+    val.on("change", function() {
+        console.log("wang gong thx！！！!!!!!!!!!")
         window[param] = Number($(this).val());  
-        _cur_date = dateFormat(window[param]);
-        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
+        //_cur_date = dateFormat(window[param]);
+        //document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
         slider.slider("destroy").attr("data-slider-value", window[param]).attr("data-value", window[param]).attr("value", window[param]);
         slider.slider({});
         slider.on("slide", function(slideEvt) {
             window[param] = slideEvt.value;  
+            val.val(window[param]);
         });
     });
     //update slider when textarea change
