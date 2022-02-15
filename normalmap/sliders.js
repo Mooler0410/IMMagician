@@ -79,13 +79,13 @@ $(document).ready(function () {
     bindSliderValParam (refr_BGdis_slider, refr_BGdis_val, "BGdis");
 
     /**Time**/
-    //cur_date = dateFormat(date_value)
-    //document.getElementById("time_zone").innerHTML = "Date:" + cur_date
+    cur_date = dateFormat(date_value)
+    document.getElementById("time_zone").innerHTML = "Date:" + cur_date
     
     var time_slider = $('#day_slider');
     var time_val = $("#day_val");
-    time_slider.attr("data-slider-min", 0).attr("data-slider-max", 1).attr("data-slider-step", 0.1).attr("data-slider-value", date_value).attr("data-slider-tooltip","hide").slider({}); 
-    bindSliderValParam(time_slider, time_val, "date_value");
+    time_slider.attr("data-slider-min", 0).attr("data-slider-max", 20000).attr("data-slider-step", 1).attr("data-slider-value", date_value).attr("data-slider-tooltip","hide").slider({}); 
+    bindSimpleSliderVal(time_slider, time_val, "date_value");
 
 
     /**Fresnel**/
@@ -377,14 +377,12 @@ function bindSliderValParam(slider, val, param){
 function bindSimpleSliderVal(slider, val, param){
     //init textarea
     val.val(window[param]);
-
     //update textarea when in slide
     slider.on("slide", function(slideEvt) {
-        console.log("wang gong thx!!!")
         window[param] = slideEvt.value;  
         val.val(window[param]);
-        //_cur_date = dateFormat(window[param]);
-        //document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
+        _cur_date = dateFormat(window[param]);
+        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
     });
     
     val.on("change", function() {
@@ -503,10 +501,10 @@ function color2hex(color) {
 }
 
 function dateFormat(int_date){
-    sec_time = int_date * 24 * 60 * 60
+    milisec_time = int_date * 24 * 60 * 60 * 1000
     var dateTypeDate = "";  
     var date = new Date();  
-    date.setTime(sec_time);  
+    date.setTime(milisec_time);  
     
     dateTypeDate +=  date.getMonth(); //月  
     dateTypeDate += "-" + date.getDay(); //日  
