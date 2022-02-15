@@ -994,8 +994,16 @@
                     <!-- Timer -->
                     <li class="panel">
             	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#TimeControl">
-                	        Time
+                            Time
                         </a>
+                        <script>
+                            data_value = 0
+                            cur_date = dateFormat(data_value)
+                            document.getElementById("time_zone").innerHTML = "Date:" + cur_date
+                        </script>
+                        <div id="time_zone">   
+                            Date:
+                        </div>
                         <div id = "timeControl" class= "inCollapse collapse"> 
                             <div class="slider_container">
                                 <span class="h6 inlineBlock"> Time by Day </span>
