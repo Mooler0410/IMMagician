@@ -25,7 +25,30 @@ $(document).ready(function () {
     $('[data-toggle="offcanvas"]').click(function () {
         $('.row-offcanvas').toggleClass('active')
     });
-      
+    
+    
+    /**Time**/
+    cur_date = dateFormat(date_value)
+    document.getElementById("time_zone").innerHTML = "Date:" + cur_date
+
+    var time_slider = $('#day_slider').slider({});
+    //var time_val = $("#day_val");
+    //time_slider.attr("data-slider-min", 0).attr("data-slider-max", 0).attr("data-slider-step", 1).attr("data-slider-tooltip","hide").slider({}); //attr("data-slider-value", time_val).
+    //bindSimpleSliderVal(time_slider, time_val, "date_value");
+    time_slider.on("slide", function(slideEvt) {
+        date_value = slideEvt.value;  
+        //val.val(window[param]);
+        _cur_date = dateFormat(date_value);
+        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
+    });
+    time_slider.on("change", function() {
+        date_value = Number($(this).val());  
+        time_slider.slider("destroy").attr("data-slider-value", date_value).attr("data-value", date_value).attr("value", date_value);
+        time_slider.slider({});
+        time_slider.on("slide", function(slideEvt) {
+            date_value = slideEvt.value;  
+        });
+    });
       
     /**********************SliderBar********************************/
     
@@ -35,15 +58,6 @@ $(document).ready(function () {
     	styleBright = slideEvt.value[0];
     	styleDark = slideEvt.value[1];
     });
-
-    /**Time**/
-    cur_date = dateFormat(date_value)
-    document.getElementById("time_zone").innerHTML = "Date:" + cur_date
-
-    var time_slider = $("#day_slider");
-    var time_val = $("#day_val");
-    time_slider.attr("data-slider-min", 0).attr("data-slider-max", 0).attr("data-slider-step", 1).attr("data-slider-tooltip","hide").slider({}); //attr("data-slider-value", time_val).
-    bindSimpleSliderVal(time_slider, time_val, "date_value");
 
 
     /**Alpha**/
