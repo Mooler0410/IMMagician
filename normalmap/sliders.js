@@ -37,9 +37,12 @@ $(document).ready(function () {
     });
 
     /**Time**/
+    cur_date = dateFormat(data_value)
+    document.getElementById("time_zone").innerHTML = "Date:" + cur_date
+
     var time_slider = $("#day_slider");
     var time_val = $("#day_val");
-    time_slider.attr("data-slider-min", 0).attr("data-slider-max", 0).attr("data-slider-step", 1).attr("data-slider-value", time_val).attr("data-slider-tooltip","hide").slider({});
+    time_slider.attr("data-slider-min", 0).attr("data-slider-max", 0).attr("data-slider-step", 1).attr("data-slider-tooltip","hide").slider({}); //attr("data-slider-value", time_val).
     //bindSimpleSliderVal(time_slider, time_val, "alphaR");
 
 
@@ -414,8 +417,8 @@ function dateFormat(int_date){
     var date = new Date();  
     date.setTime(sec_time);  
     
-    dateTypeDate +=  getMonth(date); //月  
-    dateTypeDate += "-" + getDay(date); //日  
+    dateTypeDate +=  date.getMonth(); //月  
+    dateTypeDate += "-" + date.getDay(); //日  
     dateTypeDate += "-" + date.getFullYear(); //年  
     return dateTypeDate; 
 }  
