@@ -37,13 +37,13 @@ $(document).ready(function () {
     });
 
     /**Time**/
-    cur_date = dateFormat(data_value)
+    cur_date = dateFormat(date_value)
     document.getElementById("time_zone").innerHTML = "Date:" + cur_date
 
     var time_slider = $("#day_slider");
     var time_val = $("#day_val");
     time_slider.attr("data-slider-min", 0).attr("data-slider-max", 0).attr("data-slider-step", 1).attr("data-slider-tooltip","hide").slider({}); //attr("data-slider-value", time_val).
-    //bindSimpleSliderVal(time_slider, time_val, "alphaR");
+    bindSimpleSliderVal(time_slider, time_val, "date_value");
 
 
     /**Alpha**/
@@ -337,6 +337,84 @@ function bindSliderValParamIndex(slider, val, param, index){
 
 //for others except lights
 function bindSliderValParam(slider, val, param){
+    //init textarea
+    val.val(window[param]);
+
+    //update textarea when in slide
+    slider.on("slide", function(slideEvt) {
+        window[param] = slideEvt.value;  
+        val.val(window[param]);
+    });
+    
+    //update slider when textarea change
+    val.on("change", function(){
+        window[param] = Number($(this).val());
+        slider.slider("destroy").attr("data-slider-value", window[param]).attr("data-value", window[param]).attr("value", window[param]);
+        slider.slider({});
+        slider.on("slide", function(slideEvt) {
+            window[param] = slideEvt.value;  
+            val.val(window[param]);
+        });
+    });
+
+    //textarea allSelected when on focus;
+    val.focus(function() {
+        var $this = $(this);
+        $this.select();
+
+        // Work around Chrome's little problem
+        $this.mouseup(function() {
+        // Prevent further mouseup intervention
+            $this.unbind("mouseup");
+            return false;
+        });
+    });
+
+    //textarea restrict only input number
+    val.keydown(function(e){onlyNumber(e)});
+}
+
+function bindSimpleSliderVal(slider, val, param){
+    //init textarea
+    val.val(window[param]);
+
+    //update textarea when in slide
+    slider.on("slide", function(slideEvt) {
+        window[param] = slideEvt.value;  
+        val.val(window[param]);
+        _cur_date = dateFormat(window[param]);
+        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
+    });
+    
+    //update slider when textarea change
+    //val.on("change", function(){
+    //    window[param] = Number($(this).val());
+    //    slider.slider("destroy").attr("data-slider-value", window[param]).attr("data-value", window[param]).attr("value", window[param]);
+    //    slider.slider({});
+    //    slider.on("slide", function(slideEvt) {
+    //        window[param] = slideEvt.value;  
+    //        val.val(window[param]);
+    //    });
+    //});
+
+    //textarea allSelected when on focus;
+    //val.focus(function() {
+    //    var $this = $(this);
+    //    $this.select();
+
+        // Work around Chrome's little problem
+    //    $this.mouseup(function() {
+        // Prevent further mouseup intervention
+    //        $this.unbind("mouseup");
+    //        return false;
+    //    });
+    //});
+
+    //textarea restrict only input number
+    //val.keydown(function(e){onlyNumber(e)});
+}
+
+function bindSliderVal(slider, val, param){
     //init textarea
     val.val(window[param]);
 
