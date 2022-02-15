@@ -980,20 +980,6 @@
                                     <input id="refl_FGdis_slider" data-slider-id='customSlider' type="text" />
                                 </div>
                             </div>
-                            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Time by Day </span>                                
-                                <div class="slider_box">
-                                    <input id="day_slider" 
-                                            data-slider-id='customSlider' 
-                                            type="text" 
-                                            data-provide="slider"
-                                            data-slider-max=20000
-                                            data-slider-min=0
-                                            data-slider-step=1
-                                            data-slider-tooltip="hide"
-                                    >
-                                </div>
-                            </div>
                             <!-- <div class="slider_container">
                                 <span class="h6 inlineBlock"> Bluriness </span>
                                 <div class="pull-right">
@@ -1007,7 +993,7 @@
                     </li>
                     <!-- Timer -->
                     <li class="panel">
-            	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#TimeControl">
+            	        <a class="myControlTitle collapsed" data-parent = "#accordion_R" href="#TimeControl">
                             Time
                         </a>
                         <script>
@@ -1016,16 +1002,20 @@
                         <div id="time_zone">   
                             Date:
                         </div>
-                        <div id = "timeControl" class= "inCollapse collapse"> 
-                            <div class="slider_container">
-                                <div> hahahahah </div>
-                                <span class="h6 inlineBlock"> Time by Day </span>
-                                <div class="pull-right">
-                                    <input type="text" class="form-control mytextbox text-center" id="day_val">
-                                </div>
-                                <div class="slider_box">
-                                    <!--input id="day_slider" data-slider-id='customSlider' type="text" /-->
-                                </div>
+
+                        <div class="slider_container">
+                            <span class="h6 inlineBlock"> Time by Day </span>   
+                            <div class="pull-right">
+                                <input type="text" class="form-control mytextbox text-center" id="day_val">
+                            </div>                             
+                            <div class="slider_box">
+                                <input id="day_slider" 
+                                        data-slider-id='customSlider' 
+                                        type="text" 
+                                        data-slider-max=20000
+                                        data-slider-min=0
+                                        data-slider-step=1
+                                        data-slider-tooltip="hide">
                             </div>
                         </div>
                     </li>
