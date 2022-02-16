@@ -528,8 +528,8 @@
   </head>
 
   <body>
-	  <!--nav-->
-    	<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+	<!--nav-->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
 	<ul class="fancyNav">
 	<li><a href=../index.html>Home</a></li>
 	<li><a class="active" href=../normalmap/index.html>Normal Map</a></li>
@@ -993,40 +993,25 @@
                     </li>
                     <!-- Timer -->
                     <li class="panel">
-            	        <a class="myControlTitle collapsed" data-parent = "#accordion_R" href="#TimeControl">
+            	        <a class="myControlTitle collapsed" data-parent = "#accordion_R" data-toggle="collapse" href="#TimeControl">
                             Time
                         </a>
                         <script>
                             date_value = 0
                         </script>
-                        <div id="time_zone">   
-                            Date:
-                        </div>
-
-                        <!--div class="slider_container">
-                            <span class="h6 inlineBlock"> Time by Day </span>   
-                            <div class="pull-right">
-                                <input type="text" class="form-control mytextbox text-center" id="day_val">
-                            </div>                             
-                            <div class="slider_box">
-                                <input id="day_slider" 
-                                        data-slider-id='customSlider' 
-                                        type="text" 
-                                        data-provider="slider"
-                                        data-slider-max=20000
-                                        data-slider-min=0
-                                        data-slider-step=1
-                                        data-slider-tooltip="hide">
+                        <div id = "TimeControl" class= "inCollapse collapse"> 
+                            <!-- This area can be folded -->
+                            <div id="time_zone">   
+                                Date:
                             </div>
-                        </div-->
-
-                        <div class="slider_container">
-                            <span class="h6 inlineBlock"> Time by Day </span>
-                            <div class="pull-right">
-                                <input type="text" class="form-control mytextbox text-center" id="time_val">
-                            </div>
-                            <div class="slider_box">
-                                <input id="day_slider" data-slider-id='customSlider' type="text" />
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Time by Day </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="day_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="day_slider" data-slider-id='customSlider' type="text" />
+                                </div>
                             </div>
                         </div>
                     </li>
@@ -1088,31 +1073,6 @@
                 </ul>
             </div>
             <!--Right column end-->
-
-                                <!-- Timer -->
-            <div class="time-bar">
-                <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#TimeControl">
-                    Time 湿答答
-                </a>
-                <script>
-                date_value = 0
-                </script>
-                <div id="time_zone">   
-                    Date:
-                </div>
-                <div id = "timeControl" class= "inCollapse collapse"> 
-                    <div class="slider_container">
-                        <div> hahahahah </div>
-                            <span class="h6 inlineBlock"> Time by Day </span>
-                            <div class="pull-right">
-                                <input type="text" class="form-control mytextbox text-center" id="day_val">
-                            </div>
-                            <div class="slider_box">
-                                <input id="day_slider" data-slider-id='customSlider' type="text" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
         </div>
     </div>
 
