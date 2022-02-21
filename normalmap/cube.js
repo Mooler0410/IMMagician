@@ -64,6 +64,8 @@ function initParameters(){
     showDiffuse[0] = 1;
     showSpec[0] = 1; 
 
+    timeVal = 0;
+
     //style section parameters
     styleBright = 0;
     styleDark = 1;
@@ -108,6 +110,7 @@ function initParameters(){
 var currentLightLoc;
 var lightNumLoc;
 var mouseLoc;
+var timeLoc; 
 
 var lightsOnlyLoc;
 var lightColorLoc;
@@ -142,6 +145,8 @@ var numVertices = 36;
 
 var color0Loc;
 var color1Loc;
+
+var timeVal;
 
 var darkTexture, darkImage;
 var lightTexture, lightImage;
@@ -320,6 +325,7 @@ window.onload = function init()
     logIORLoc = gl.getUniformLocation( program, "logIOR");
     BGdisLoc = gl.getUniformLocation( program, "BGdis");
     FGdisLoc = gl.getUniformLocation( program, "FGdis");
+    timeLoc = gl.getUniformLocation(program, "dayTime")
     reflMapLoc = gl.getUniformLocation ( program, "reflMap");
     FGshiftXLoc = gl.getUniformLocation( program, "FGshiftX");
     FGshiftYLoc = gl.getUniformLocation( program, "FGshiftY");
@@ -420,6 +426,7 @@ function render() {
     gl.uniform1f(BGdisLoc, BGdis);
     gl.uniform1f(FGdisLoc, FGdis);
     gl.uniform1i(reflMapLoc, reflMap);
+    gl.uniform1f(timeLoc, timeVal)
     gl.uniform1f(FGshiftXLoc, FGshiftX);
     gl.uniform1f(FGshiftYLoc, FGshiftY);
     gl.uniform1f(FGscaleXLoc, FGscaleX);
