@@ -396,6 +396,7 @@ function bindSimpleSliderVal(slider, val, param){
     val.val(window[param]);
     //update textarea when in slide
     slider.on("slide", function(slideEvt) {
+        window["timeVal"] = slideEvt.value / 20000
         window[param] = slideEvt.value;
         val.val(window[param]);
         _cur_date = dateFormat(window[param]);

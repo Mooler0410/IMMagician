@@ -109,6 +109,7 @@
         uniform float FGscaleX;
         uniform float FGscaleY;
 
+        uniform float dayTime;
         uniform float fresnelIntensity;
         uniform float fresnelB;
         uniform float fresnelC;
@@ -154,6 +155,15 @@
                     break;
                 }
             }
+
+            // time of day calculation
+			color *= 0.5;
+			vec3 vLight = vec3(0.0, 0.0, 1.0);
+            float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
+            float t = (cosTheta - styleDark) / (styleBright - styleDark);
+            if (t>1.0) t=1.0; if (t<0.0) t=0.0;
+            vec3 time_color = dayTime * vec3(-0.9, -0.5, -0.5) + vec3(1.0, 0.75, 0.15);
+			color += (1.0 - t) * vec4(time_color, 1.0);
 
             vec4 T = color;//lightWeight;
 
@@ -255,6 +265,10 @@
                 }
             vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
 
+            vec3 time_color = dayTime * vec3(0.3, -0.5, -0.15) + vec3(1.0, 0.75, 0.15);
+			reflColor += vec4(time_color, 1.0);
+
+
             if (checkFresnel )
             {
                 reflColor = vec4(1.0,1.0,1.0,1.0);
@@ -344,6 +358,10 @@
                 }
 
             vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
+
+            vec3 time_color = dayTime * vec3(0.3, -0.5, -0.15) + vec3(1.0, 0.75, 0.15);
+			reflColor += vec4(time_color, 1.0);
+
             if (checkFresnel)
             {
                 reflColor = vec4(1.0,1.0,1.0,1.0);
@@ -559,8 +577,8 @@
   </head>
 
   <body>
-	  <!--nav-->
-    	<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+	<!--nav-->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
 	<ul class="fancyNav">
 	<li><a href=../index.html>Home</a></li>
 	<li><a class="active" href=../normalmap/index.html>Normal Map</a></li>
@@ -662,7 +680,7 @@
                         		<div>
                                     <div id = "container7" class="imgThumb_container">
                                         <div class="btn-file">
-                                            <input type="file" id = "inputFileToLoad7" >
+                                            <input type="file" id = "inputFileToLoad3" >
                                         </div>
                                         <div id = "container7image" class="imgThumb"> </div>
                                     </div>
@@ -680,19 +698,7 @@
                             </div>
                     	</div>
                     </li>
-
                 </ul>
-		    <div>
-	    		<b>Welcome to Mock3d </b> - a way to create stylistic 3D visualizations using 2d images.
-			<ul>
-				<li>Drag and drop a normal image into the "Shape Image" container. </li>
-				<li>Insert images for Dark shading and Bright shading.</li>
-				<li>Add more lights under the Light tab, control light color, intensity and distance.</li>
-				Change light position by dragging with mouse.
-			        <li>Insert background image under Refraction tab and control refraction and fresnel using sliders.</li>
-		                <li>Insert foreground image under Reflection tab and control reflections using sliders.</li>
-			</ul>
-                   </div>
             </div>
             <!--Left Column end-->
             <!--Main Canvas start-->
@@ -711,11 +717,12 @@
                     </canvas>
 
                     <svg id = "lightPosition_container" xmlns = " http://www.w3.org/2000/svg" >
-
-
-
                     </svg>
 
+                </div>
+                <div class="canvas_container">
+                    <canvas id = "task1-canvas" >
+                    </canvas>
                 </div>
 
             </div>
@@ -1037,40 +1044,25 @@
                     </li>
                     <!-- Timer -->
                     <li class="panel">
-            	        <a class="myControlTitle collapsed" data-parent = "#accordion_R" href="#TimeControl">
+            	        <a class="myControlTitle collapsed" data-parent = "#accordion_R" data-toggle="collapse" href="#TimeControl">
                             Time
                         </a>
                         <script>
                             date_value = 0
                         </script>
-                        <div id="time_zone">
-                            Date:
-                        </div>
-
-                        <!--div class="slider_container">
-                            <span class="h6 inlineBlock"> Time by Day </span>
-                            <div class="pull-right">
-                                <input type="text" class="form-control mytextbox text-center" id="day_val">
+                        <div id = "TimeControl" class= "inCollapse collapse">
+                            <!-- This area can be folded -->
+                            <div id="time_zone">
+                                Date:
                             </div>
-                            <div class="slider_box">
-                                <input id="day_slider"
-                                        data-slider-id='customSlider'
-                                        type="text"
-                                        data-provider="slider"
-                                        data-slider-max=20000
-                                        data-slider-min=0
-                                        data-slider-step=1
-                                        data-slider-tooltip="hide">
-                            </div>
-                        </div-->
-
-                        <div class="slider_container">
-                            <span class="h6 inlineBlock"> Time by Day </span>
-                            <div class="pull-right">
-                                <input type="text" class="form-control mytextbox text-center" id="time_val">
-                            </div>
-                            <div class="slider_box">
-                                <input id="day_slider" data-slider-id='customSlider' type="text" />
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Time by Day </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="day_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="day_slider" data-slider-id='customSlider' type="text" />
+                                </div>
                             </div>
                         </div>
                     </li>
@@ -1132,31 +1124,6 @@
                 </ul>
             </div>
             <!--Right column end-->
-
-                                <!-- Timer -->
-            <div class="time-bar">
-                <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#TimeControl">
-                    Time 湿答答
-                </a>
-                <script>
-                date_value = 0
-                </script>
-                <div id="time_zone">
-                    Date:
-                </div>
-                <div id = "timeControl" class= "inCollapse collapse">
-                    <div class="slider_container">
-                        <div> hahahahah </div>
-                            <span class="h6 inlineBlock"> Time by Day </span>
-                            <div class="pull-right">
-                                <input type="text" class="form-control mytextbox text-center" id="day_val">
-                            </div>
-                            <div class="slider_box">
-                                <input id="day_slider" data-slider-id='customSlider' type="text" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
         </div>
     </div>
 
