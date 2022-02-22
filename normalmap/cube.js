@@ -5,7 +5,7 @@ var lightNum = 1;
 
 var mouseXY = [];
 mouseXY[0] = [0.3, -0.3];     //default light
-  
+
 var lightsPosition = 0;
 var lightsOnly = 0;
 
@@ -25,7 +25,7 @@ pointLightDecay[0] = 0.1;
 var showDiffuse = [];
 showDiffuse[0] = 1;
 
-var showSpec = [];   
+var showSpec = [];
 showSpec[0] = 1;
 
 
@@ -37,6 +37,7 @@ var styleBright,
 var alphaR;
 var alphaG;
 var alphaB;
+var reflection_degree;
 
 var logIOR5;//[-1, 1]
 var BGdis;
@@ -62,7 +63,7 @@ function initParameters(){
     pointLightDis[0] = 0.5;
     pointLightDecay[0] = 0.0;
     showDiffuse[0] = 1;
-    showSpec[0] = 1; 
+    showSpec[0] = 1;
 
     //style section parameters
     styleBright = 0;
@@ -76,11 +77,12 @@ function initParameters(){
     alphaR = 1;
     alphaG = 1;
     alphaB = 1;
-    
+    reflection_degree = 1;
+
     //refraction parameters
     logIOR = 0.25;//[-1, 1]
     BGdis = 0.6;
-    
+
     //reflection parameters
     FGdis = 0.2;
     reflMap = 1;//1: plane; 2:hemisphere
@@ -88,7 +90,7 @@ function initParameters(){
     FGshiftY = 0;
     FGscaleX = 0.5;
     FGscaleY = 0.5;
-    
+
     //Fresnel parameters
     fresnelIntensity = 0;
     fresnelB = 0.3; //cos = 0.95
@@ -127,7 +129,7 @@ var FGshiftXLoc, FGshiftYLoc, FGscaleXLoc, FGscaleXLoc;
 
 var fresnelIntensityLoc;
 var fresnelBLoc, fresnelCLoc;
-var checkFresnelLoc; 
+var checkFresnelLoc;
 
 
 /****************** For Basic shader ******************/
@@ -143,6 +145,9 @@ var numVertices = 36;
 var color0Loc;
 var color1Loc;
 
+var reflection_degree_loc;
+var reflection_degree_val;
+
 var darkTexture, darkImage;
 var lightTexture, lightImage;
 var normalTexture, normalImage;
@@ -150,16 +155,18 @@ var reflectTexture, reflectImage;
 var refractTexture, refractImage;
 var alphaTexture, alphaImage;
 
+
+
 window.onload = function init()
 {
     var canvas = document.getElementById( "gl-canvas" );
-    
+
     gl = WebGLUtils.setupWebGL( canvas );
     if ( !gl ) { alert( "WebGL isn't available" ); }
 
-    
+
     var context = canvas.getContext('2d');
-    
+
 
     /***************/
 
@@ -172,14 +179,14 @@ window.onload = function init()
     gl.clearColor( 0.05, 0.05, 0.05, 1.0 );
 
     gl.enable( gl.DEPTH_TEST );
-    
+
     //////////////////  Load shaders and initialize attribute buffers  /////////////////
-    
+
     var program = initShaders( gl, "vertex-shader", "fragment-shader" );
     gl.useProgram( program );
-    
+
     /* Vertex colors
-    // Load the data into the GPU   
+    // Load the data into the GPU
     var cBuffer = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, cBuffer );
     gl.bufferData( gl.ARRAY_BUFFER, flatten(colors), gl.STATIC_DRAW );
@@ -199,7 +206,7 @@ window.onload = function init()
 
     // Associate out shader variables with our data buffer
     var vPosition = gl.getAttribLocation( program, "vPosition" );
-    gl.vertexAttribPointer( vPosition, 4, gl.FLOAT, false, 0, 0 ); 
+    gl.vertexAttribPointer( vPosition, 4, gl.FLOAT, false, 0, 0 );
     gl.enableVertexAttribArray( vPosition );
 
 
@@ -232,32 +239,32 @@ window.onload = function init()
     normalImage.src = image3.src;
     requestCORSIfNotSameOrigin(normalImage, normalImage.src);
     console.log(normalImage.src);
-  
-  
+
+
     lightImage.src = image2.src;
     requestCORSIfNotSameOrigin(lightImage, lightImage.src);
     console.log(lightImage.src);
-  
-  
+
+
     darkImage.src = image1.src;
     requestCORSIfNotSameOrigin(darkImage, darkImage.src);
     console.log(this.darkImage.src);
-  
-  
+
+
     refractImage.src = image5.src;
     requestCORSIfNotSameOrigin(refractImage, refractImage.src);
     console.log(this.refractImage.src);
-  
-  
+
+
     reflectImage.src = image4.src;
     requestCORSIfNotSameOrigin(reflectImage, reflectImage.src);
     console.log(this.refractImage.src);
-  
-  
+
+
     alphaImage.src = image6.src;
     requestCORSIfNotSameOrigin(alphaImage, alphaImage.src);
     console.log(this.alphaImage.src);
-  
+
     normalImage.onload = function() { handleTextureLoaded(normalImage, normalTexture); }
 
     lightImage.onload = function() { handleTextureLoaded(lightImage, lightTexture); }
@@ -287,11 +294,11 @@ window.onload = function init()
     gl.bindTexture(gl.TEXTURE_2D, refractTexture);
     gl.uniform1i(gl.getUniformLocation(program, "uSamplerBackground"), 3);
 
-    gl.activeTexture(gl.TEXTURE4); 
+    gl.activeTexture(gl.TEXTURE4);
     gl.bindTexture(gl.TEXTURE_2D, reflectTexture);
     gl.uniform1i(gl.getUniformLocation(program, "uSamplerForeground"), 4);
 
-    gl.activeTexture(gl.TEXTURE5); 
+    gl.activeTexture(gl.TEXTURE5);
     gl.bindTexture(gl.TEXTURE_2D, alphaTexture);
     gl.uniform1i(gl.getUniformLocation(program, "uSamplerAlpha"), 5);
 
@@ -300,17 +307,17 @@ window.onload = function init()
     currentLightLoc = gl.getUniformLocation (program, "currentLight");
     lightNumLoc = gl.getUniformLocation (program, "lightNum");
     mouseLoc = gl.getUniformLocation( program, "mouseXY");
-    
+
     lightsOnlyLoc = gl.getUniformLocation (program, "lightsOnly");
 
-    
+
     lightColorLoc = gl.getUniformLocation (program, "lightColor");
     lightIntensityLoc = gl.getUniformLocation (program, "lightIntensity");
     showDiffuseLoc = gl.getUniformLocation( program, "showDiffuse");
     showSpecLoc = gl.getUniformLocation( program, "showSpec");
     pointLightDisLoc = gl.getUniformLocation( program, "pointLightDis");
     pointLightDecayLoc = gl.getUniformLocation( program, "pointLightDecay");
-            
+
 
     styleBrightLoc = gl.getUniformLocation( program, "styleBright");
     styleDarkLoc = gl.getUniformLocation( program, "styleDark");
@@ -326,6 +333,8 @@ window.onload = function init()
     FGscaleXLoc = gl.getUniformLocation( program, "FGscaleX");
     FGscaleYLoc = gl.getUniformLocation( program, "FGscaleY");
 
+    reflection_degree_loc = gl.getUniformLocation( program, "reflection_degree");
+
     fresnelIntensityLoc = gl.getUniformLocation ( program, "fresnelIntensity");
     fresnelBLoc = gl.getUniformLocation( program, "fresnelB");
     fresnelCLoc = gl.getUniformLocation( program, "fresnelC");
@@ -335,27 +344,27 @@ window.onload = function init()
 };
 
 function initTextures() {
-    
+
 
     normalTexture = gl.createTexture();
     normalImage = new Image();
-    
+
     lightTexture = gl.createTexture();
     lightImage = new Image();
-    
+
     darkTexture = gl.createTexture();
     darkImage = new Image();
-    
+
     refractTexture = gl.createTexture();
     refractImage = new Image();
-    
+
     reflectTexture = gl.createTexture();
     reflectImage = new Image();
-    
+
     alphaTexture = gl.createTexture();
     alphaImage = new Image();
-    
-    
+
+
 
 }
 
@@ -370,7 +379,7 @@ function handleTextureLoaded(image, texture) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.generateMipmap(gl.TEXTURE_2D);
     //gl.bindTexture(gl.TEXTURE_2D, 0);
-    
+
 }
 
 
@@ -389,33 +398,33 @@ function render() {
         var checkboxName_showDiffuse = '#lightPanel' + i + ' #diffuseSelect:checked';
         var showDiffuseElem = $(checkboxName_showDiffuse);
         showDiffuse[i] = (showDiffuseElem.val())?1:0;
-        
+
         var checkboxName_showSpec = '#lightPanel' + i + ' #specSelect:checked';
         var showSpecElem = $(checkboxName_showSpec);
         showSpec[i] = (showSpecElem.val())?1:0;
-        
+
     }
-    
+
     gl.uniform1i(currentLightLoc, currentLight);
     gl.uniform1f(lightNumLoc, lightNum);
 
     gl.uniform2fv(mouseLoc, flatten(mouseXY));//use flatten() to extract data from JS Array, send it to WebGL functions
-    
+
     gl.uniform1i(lightsOnlyLoc, lightsOnly);
     gl.uniform3fv(lightColorLoc, flatten(lightColor));
     gl.uniform1fv(lightIntensityLoc, lightIntensity);
-    
+
     gl.uniform1iv(showDiffuseLoc, showDiffuse);
     gl.uniform1iv(showSpecLoc, showSpec);
     gl.uniform1fv(pointLightDisLoc, pointLightDis);
     gl.uniform1fv(pointLightDecayLoc, pointLightDecay);
-    
+
     gl.uniform1f(styleBrightLoc, styleBright);
     gl.uniform1f(styleDarkLoc, styleDark);
     gl.uniform1f(alphaRLoc, alphaR);
     gl.uniform1f(alphaGLoc, alphaG);
     gl.uniform1f(alphaBLoc, alphaB);
-    
+
     gl.uniform1f(logIORLoc, logIOR);
     gl.uniform1f(BGdisLoc, BGdis);
     gl.uniform1f(FGdisLoc, FGdis);
@@ -424,6 +433,8 @@ function render() {
     gl.uniform1f(FGshiftYLoc, FGshiftY);
     gl.uniform1f(FGscaleXLoc, FGscaleX);
     gl.uniform1f(FGscaleYLoc, FGscaleY);
+
+    gl.uniform1f(reflection_degree_loc, reflection_degree_val);
 
     gl.uniform1f(fresnelIntensityLoc, fresnelIntensity);
     gl.uniform1f(fresnelBLoc, fresnelB);

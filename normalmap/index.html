@@ -16,10 +16,10 @@
 
     <!-- Bootstrap core CSS -->
     <link href="css/bootstrap.css" rel="stylesheet"> <!--have bootstrap.min.css-->
-	<link href="css/offcanvas.css" rel="stylesheet"> 
-    <link href="css/bootstrap-slider.css" rel="stylesheet"> 
-    <link href="css/jquery.minicolors.css" rel="stylesheet"> 
-    
+	<link href="css/offcanvas.css" rel="stylesheet">
+    <link href="css/bootstrap-slider.css" rel="stylesheet">
+    <link href="css/jquery.minicolors.css" rel="stylesheet">
+
 
     <!-- Custom styles for this template -->
     <link href="css/mock3d.css" rel="stylesheet">
@@ -33,7 +33,7 @@
 
         varying vec2 f_texcoord;
         varying vec3 fNormal;
-        
+
         varying vec3 pLight[max_lights];
         varying float lightN;// = lightNum
         varying vec2 mouseXYcopy;
@@ -41,8 +41,9 @@
         uniform float lightNum;
         uniform vec2 mouseXY[max_lights];
         uniform float pointLightDis[max_lights];
-        
-        
+
+
+
         void main()
         {
 
@@ -78,11 +79,11 @@
         varying vec3 fNormal;//(0,0,1)
 
         varying float lightN;
-        
+
         varying vec3 pLight[max_lights];
 
         varying vec2 mouseXYcopy;
-        
+
         uniform sampler2D uSamplerColor0, uSamplerColor1, uSamplerNormal, uSamplerForeground, uSamplerBackground, uSamplerAlpha;
 
         uniform int currentLight;
@@ -92,16 +93,16 @@
         uniform vec3 lightColor[max_lights];
         uniform float lightIntensity[max_lights];
         uniform float pointLightDecay[max_lights];
-        
+
         uniform bool showDiffuse[max_lights];
         uniform bool showSpec[max_lights];
-        
+
         uniform float styleBright, styleDark;
-        uniform float alphaR, alphaG, alphaB;
+        uniform float alphaR, alphaG, alphaB, reflection_degree;
         uniform float logIOR, BGdis;
 
         uniform float FGdis;
-        
+
         uniform int reflMap;// 1: plane, 2:hemisphere
         uniform float FGshiftX;
         uniform float FGshiftY;
@@ -127,8 +128,8 @@
         {
 
             vec3 currentP = vec3(f_texcoord.s - 0.5, f_texcoord.t-0.5, 0.0);
-            
-            
+
+
             vec4 color = vec4(0,0,0,1);
             float lightWeight = 0.0;
 
@@ -144,7 +145,7 @@
                     if ( showDiffuse[i] )
                     {
                         float dis = length( pLight[i] - currentP );
-                        
+
                         color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i];// / ( 1.0 + pointLightDecay[i] * dis *4.0);
                         lightWeight+=lightIntensity[i] ;
                     };
@@ -153,14 +154,16 @@
                     break;
                 }
             }
-            
+
             vec4 T = color;//lightWeight;
-            
+
             vec4 c0 = texture2D(uSamplerColor0, vec2(f_texcoord.s, f_texcoord.t) );//dark
             vec4 c1 = texture2D(uSamplerColor1, vec2(f_texcoord.s, f_texcoord.t) );//bright
 
             vec4 colorFinal = c0 * (1.0 - T) + c1 * T;
-            
+
+
+
             if (lightsOnly )
             {
                 return T;
@@ -168,8 +171,8 @@
                 return colorFinal;
             }
 
-            
-            
+
+
         }
 
         vec3 alphaControl()
@@ -177,6 +180,23 @@
             vec4 alphaMap = texture2D(uSamplerAlpha, vec2(f_texcoord.s, f_texcoord.t) );
             return alphaMap.rgb;
         }
+
+        //Mirror reflection
+        // vec3 mirrorReflection(vec3 n)
+        // {
+        //   float reflectIntensity = 1.0;
+        //   float min = 0.000, max = 1.000;
+        //   float randomNum = Math.random() * (max - min) + min;
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        // }
+
+
 
         vec3 spec(vec3 n)
         {
@@ -202,7 +222,7 @@
                     break;
                 }
             }
-            
+
             return finalSpec ;
         }
 
@@ -211,6 +231,7 @@
         {
 
             float reflectIntensity = 1.0;
+            vec4 noise = vec4(0.23, 0.57, 0.84,1.0);
             vec3 reflect = - 1.0 * vec3(0.0, 0.0, 1.0) + 2.0 * dot(n, vec3(0.0, 0.0, 1.0)) * n;
             vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5) ;//+ vLight0.xy ;
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
@@ -233,13 +254,17 @@
                     }
                 }
             vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
-            
+
             if (checkFresnel )
             {
                 reflColor = vec4(1.0,1.0,1.0,1.0);
             }
+            reflColor = (1.0 - reflection_degree) * reflColor + reflection_degree * noise;
             return reflColor.rgb * reflectIntensity;
         }
+
+
+
 
 
         // vec3 reflect1(vec3 n)
@@ -259,7 +284,7 @@
         //     if ( s < 0.0 ) reflect = origReflect * (1.0 - (s) ) + Vsurface * ( s);
 
 
-            
+
         //     vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy[0].x * 0.5, mouseXYcopy[0].y * 0.5) ;//+ vLight0.xy ;
         //     vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
         //         reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
@@ -281,7 +306,7 @@
         //             }
         //         }
         //     vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
-            
+
         //     if (checkFresnel )
         //     {
         //         reflColor = vec4(1.0,1.0,1.0,1.0);
@@ -294,8 +319,9 @@
             // away from the surface.
         vec3 reflect2(vec3 n)
         {
-            
+
             float reflectIntensity = 1.0;
+            vec4 noise = vec4(0.49, 0.37, 0.54,1.0);
             vec2 reflCoord = f_texcoord + n.xy/n.z * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5);
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
                 reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
@@ -322,10 +348,10 @@
             {
                 reflColor = vec4(1.0,1.0,1.0,1.0);
             }
-
+            reflColor = (1.0 - reflection_degree) * reflColor + reflection_degree * noise;
             return reflColor.rgb * reflectIntensity;
         }
-        
+
 
 
 
@@ -366,17 +392,17 @@
             }
             return refrColor.rgb * refractIntensity;
         }
-        
+
 
         vec3 fresnelBlend(vec3 n, vec3 refl, vec3 refr)
         {
             float cos = dot(n, vec3(0, 0, 1.0) );
             float N = (logIOR + 1.0) / 2.0;
-            float Amin = 0.02, 
+            float Amin = 0.02,
                     Amax = 0.3;
-            float Cmin = 0.4, 
+            float Cmin = 0.4,
                 Cmax = 1.0;
-            
+
             float A = Amin * ( 1.0 - N ) + Amax * N;
             float B = 0.0;
             float C = Cmin * ( 1.0 - N ) + Cmax * N;
@@ -408,45 +434,45 @@
                 return refl * fresnel + refr * ( 1.0 - fresnel );
             }
 
-            
+
             //vec3 reflTemp = refl * reflectIntensity ;
             //vec3 refrTemp = refr * (1.0 - reflectIntensity);
             //return reflTemp * (1.0 - cos) + refrTemp * cos;
-            
-               
+
+
         }
 
         void main()
-        {   
-          
+        {
+
             vec4 nn = normal();
             vec3 n = nn.xyz;
-            
+
             //vec3 specular = spec(n);
             vec4 diffuse = diffuse(n);//+ vec4(specular, 1.0);
             vec3 specular = spec(n);
             vec3 alphaControl = alphaControl();
             vec4 background = texture2D(uSamplerBackground, vec2(f_texcoord.s, f_texcoord.t) );
             vec3 backgroundColor = background.rgb;
-            vec3 refl = vec3 (0,0,0); 
+            vec3 refl = vec3 (0,0,0);
             if (reflMap == 1)
             {
                 refl = reflect1(n) + specular; //plane
-                if (checkFresnel){refl = reflect1(n);} 
+                if (checkFresnel){refl = reflect1(n);}
             }else if (reflMap == 2)
             {
                 refl = reflect2(n) + specular; //hemisphere
-                if (checkFresnel){refl = reflect2(n);} 
+                if (checkFresnel){refl = reflect2(n);}
             }
             vec3 refr = refract(n);
-            
+
             vec3 fresnel = fresnelBlend(n, refl, refr);
-            
+
             vec4 finalColor = diffuse;
 
 
-            
-            //finalColor += vec4(specular, 1.0); 
+
+            //finalColor += vec4(specular, 1.0);
 
 
             vec4 finalColor_showLightsOnly = finalColor;
@@ -455,26 +481,31 @@
 	    float alpha1 = diffuse.a;
 	    float alpha2 = diffuse.a;
 
-            float a,b,c,d;
-            
+            float a,b,c,d,r;
+
             a = alphaControl.r;
-            alpha = alpha * (1.0 - a) + alpha * alphaR * a; 
+            alpha = alpha * (1.0 - a) + alpha * alphaR * a;
             b = alphaControl.g;
-            alpha1 = alpha1 * (1.0 - b) + alpha1 * alphaG * b; 
+            alpha1 = alpha1 * (1.0 - b) + alpha1 * alphaG * b;
             c = alphaControl.b;
-            alpha2 = alpha2 * (1.0 - c) + alpha2 * alphaB * c; 
-            
-            
+            alpha2 = alpha2 * (1.0 - c) + alpha2 * alphaB * c;
+
+          // float reflection_degree;
+          // r = alphaControl.mirror;
+          // alpha = alpha * reflection_degree;
+
+
+
             finalColor = vec4 (refl * (1.0 - alpha) + finalColor.rgb * alpha, 1.0) ;
 	    finalColor = vec4 (refr * (1.0 - alpha1) + finalColor.rgb * alpha1, 1.0) ;
 	    finalColor = vec4 (fresnel * (1.0 - alpha2) + finalColor.rgb * alpha2, 1.0) ;
-            
-            
-            
+
+
+
 
             d = nn.a  ;
             vec3 compBackground = backgroundColor * (1.0 - d) + finalColor.rgb * d;
-            
+
             if (checkFresnel )
             {
                 finalColor = vec4 (fresnel, 1.0);
@@ -486,14 +517,14 @@
                 compBackground = vec3(0,0,0) * (1.0 - d) + finalColor.rgb * d;
             }
 
-            
+
             gl_FragColor = vec4(compBackground.rgb, 1.0);
 
-            
+
 
 
             //gl_FragColor = vec4(diffuse.a,diffuse.a,diffuse.a, 1.0);
-            
+
             //gl_FragColor = vec4(userMouse.x+0.5, -userMouse.y+0.5, 0.0, 1.0);
 
             //gl_FragColor = vec4(f_texcoord.x, 1.0-f_texcoord.y, 0.0, 1.0);
@@ -502,10 +533,10 @@
             vec2 v0 = f_texcoord - mouseXY0;
             vec3 NewNormal;
              NewNormal = vec3(v0.xy, sqrt(1.0 - length(v0)/(0.1*0.1)));
-            
+
             vec3 Newrefr = refract(NewNormal);
             gl_FragColor = vec4(refr,1.0);
-*/           
+*/
 
             /*
             vec3 diffuse = diffuse(n).rgb;
@@ -523,7 +554,7 @@
     <script type="text/javascript" src="resources/initShaders.js"></script>
     <script type="text/javascript" src="resources/MV.js"></script>
     <script type="text/javascript" src="resources/ccapture.js-master/build/CCapture.all.min.js"></script>
-    
+
 
   </head>
 
@@ -549,14 +580,14 @@
         <div class="row row-offcanvas row-offcanvas-left">
             <!--Left Column start-->
             <div class="col-sm-2 sidebar sidebar-left sidebar-offcanvas">
-        
+
                 <div class="main_button_container">
-                    
+
 		    <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
     		    Dropdown button
-  		    </button>	
+  		    </button>
 		    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-			    
+
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Fence</button>
 
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">EscherSphere</button>
@@ -564,34 +595,34 @@
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Bottle</button>
 
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">JarTable</button>
-			    
+
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Picasso Self-Portrait</button>
-			    
+
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Picasso Dora Maar</button>
-			    
+
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Modigliani</button>
-			    
+
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Picasso Self-Portrait Soft</button>
-			    
+
 			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Picasso Dora Maar Soft</button>
-			    
-			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Modigliani Soft</button>	
-			    
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Modigliani Soft</button>
+
 			       <div class="clearfix"></div>
 		    </div>
                 </div>
-		
-		    
-		  	
-              
+
+
+
+
                 <ul class="myAccordion" id = "accordion_L">
               	    <!--Basic Images-->
                     <li class="panel">
-                    	<a class="myControlTitle" data-toggle= "collapse" data-parent= "#accordion_L" href="#basicImages"  > 
-                              Basic Images 	
+                    	<a class="myControlTitle" data-toggle= "collapse" data-parent= "#accordion_L" href="#basicImages"  >
+                              Basic Images
                         </a>
-                        <div id = "basicImages" class= "inCollapse collapse in" > 
-                       	    
+                        <div id = "basicImages" class= "inCollapse collapse in" >
+
                             <div class = "imgbox_container">
                                 <h6><span title="Insert or DragnDrop bright image here">Bright Image</span></h6>
                                 <div>
@@ -599,7 +630,7 @@
                                         <div class="btn-file">
                                             <input type="file" id = "inputFileToLoad2" >
                                         </div>
-                                        <div id = "container2image" class="imgThumb"> 
+                                        <div id = "container2image" class="imgThumb">
                                         </div>
                                     </div>
                                 </div>
@@ -636,27 +667,27 @@
                                         <div id = "container7image" class="imgThumb"> </div>
                                     </div>
                                 </div>
-                            </div>	
+                            </div>
                             <div>
                           	    <h6>Style Control</h6>
                           	    <div class="slider_box">
                             		<input id="styleControl_slider" data-slider-id='customSlider' type="text" class=" span2"   value="" />
                                 </div>
                           	     <div >
-                          		    <div class = "h7 inlineBlock">Bright</div>   
+                          		    <div class = "h7 inlineBlock">Bright</div>
                             		<div class = "h7 pull-right">Dark</div>
                           	     </div>
                             </div>
-                    	</div>	
+                    	</div>
                     </li>
-                    
+
                 </ul>
 		    <div>
 	    		<b>Welcome to Mock3d </b> - a way to create stylistic 3D visualizations using 2d images.
-			<ul>    
+			<ul>
 				<li>Drag and drop a normal image into the "Shape Image" container. </li>
 				<li>Insert images for Dark shading and Bright shading.</li>
-				<li>Add more lights under the Light tab, control light color, intensity and distance.</li> 
+				<li>Add more lights under the Light tab, control light color, intensity and distance.</li>
 				Change light position by dragging with mouse.
 			        <li>Insert background image under Refraction tab and control refraction and fresnel using sliders.</li>
 		                <li>Insert foreground image under Reflection tab and control reflections using sliders.</li>
@@ -671,34 +702,34 @@
             	   <button type="button" class="btn btn-primary btn-xs" data-toggle="offcanvas">Toggle nav</button>
                 </p>
                 -->
-         	    <!-- 
-                <img src="img/solidColor.jpg" class="img-responsive" alt="our canvas"> 
+         	    <!--
+                <img src="img/solidColor.jpg" class="img-responsive" alt="our canvas">
                 -->
                 <div class="canvas_container">
                     <canvas id="gl-canvas" >
                         Oops ... your browser doesn't support the HTML5 canvas element
                     </canvas>
-                    
+
                     <svg id = "lightPosition_container" xmlns = " http://www.w3.org/2000/svg" >
 
-                        
-                    
+
+
                     </svg>
-                    
+
                 </div>
-        
+
             </div>
             <!--Main Canvas end-->
-        
+
             <!--Right column start-->
             <div class="col-sm-2 sidebar sidebar-right">
                 <ul class="myAccordion" id = "accordion_R">
                     <!--Light-->
                     <li class="panel">
-            	        <a class = "myControlTitle collapsed" data-toggle= "collapse" data-parent= "#accordion_R" href="#lightControl"> 
-                		    Light 
+            	        <a class = "myControlTitle collapsed" data-toggle= "collapse" data-parent= "#accordion_R" href="#lightControl">
+                		    Light
                         </a>
-                        <div id = "lightControl" class= "inCollapse collapse" > 
+                        <div id = "lightControl" class= "inCollapse collapse" >
                             <div class = "checkbox">
                                 <label>
                          		    <span class="h6 inlineBlock" >Show Lights Position</span>
@@ -729,15 +760,15 @@
                             </div>
                             <div id = "lights_container">
                                 <ul class="myAccordion" id = "accordion_Lights">
-                                    
+
                                 </ul>
                             </div>
-            	        </div>	
+            	        </div>
                     </li>
                     <!--Shadow-->
                     <!-- <li class="panel">
             	        <a class = "myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#shadow">Shadow<span class="sr-only">(current)</span></a>
-                        <div id = "shadow" class= "inCollapse collapse"> 
+                        <div id = "shadow" class= "inCollapse collapse">
                	            <div class="checkbox">
                                 <label>
                                     <span class = "h6 inlineBlock"> Show Shadow </span>
@@ -765,14 +796,14 @@
                        	            <input id="sha_numberOfSample_slider" data-slider-id='customSlider' type="text"/>
                                 </div>
                             </div>
-            	        </div>	
+            	        </div>
                     </li> -->
                     <!--Additional Alpha Control-->
                     <li class="panel">
                         <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#alphaControl">
                             Diffuse Alpha
                         </a>
-                        <div id = "alphaControl" class= "inCollapse collapse"> 
+                        <div id = "alphaControl" class= "inCollapse collapse">
                             <div class="imgbox_container">
                                 <h6>Alpha Image</h6>
                                 <div>
@@ -812,14 +843,27 @@
                                     <input id="alphaInBlue_slider" data-slider-id='customSlider' type="text"/>
                                 </div>
                             </div>
-                        </div>  
+
+                            <!--  Project 2 alpha task   -->
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Mirror Reflection </span>
+                                <div class="pull-right">
+                                     <input type="text" class="form-control mytextbox text-center" id="mirror_reflection">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="mirrorReflection_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+
+
+                        </div>
                     </li>
                     <!--Refraction-->
                     <li class="panel">
             	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#refractionControl">
                 	        Refraction
                         </a>
-                        <div id = "refractionControl" class= "inCollapse collapse"> 
+                        <div id = "refractionControl" class= "inCollapse collapse">
                             <div class="imgbox_container">
                 		        <h6>Background image</h6>
                 		        <div>
@@ -851,7 +895,7 @@
                             </div>
                             <div class = "fresnel_container">
                                 <div class = "fresnelPanel">
-                                    <div class = "myFresnelTitle"> 
+                                    <div class = "myFresnelTitle">
                                         FRESNEL
                                     </div>
                                     <div class = "fresnelBox">
@@ -873,7 +917,7 @@
                                                 <input id="fresnel_intensity_slider" data-slider-id='customSlider' type="text" />
                                             </div>
                                             <div>
-                                                <div class = "h7 inlineBlock">Full Refract</div>   
+                                                <div class = "h7 inlineBlock">Full Refract</div>
                                                 <div class = "h7 pull-right">Full Reflect</div>
                                              </div>
                                         </div>
@@ -883,12 +927,12 @@
                                                 <input id="fresnelControl_slider" data-slider-id='customSlider' type="text" class=" span2" value="" />
                                             </div>
                                             <div>
-                                                <div class = "h7 inlineBlock">Center</div>   
+                                                <div class = "h7 inlineBlock">Center</div>
                                                 <div class = "h7 pull-right">Edge</div>
                                             </div>
-                                        </div>        
+                                        </div>
                                     </div>
-                                    
+
                                 </div>
                             </div>
                             <!-- <div class="slider_container">
@@ -900,14 +944,14 @@
                        	            <input id="translucency_slider" data-slider-id='customSlider' type="text"/>
                                 </div>
                             </div> -->
-            	        </div>	
+            	        </div>
                     </li>
                     <!--Reflection-->
                     <li class="panel">
             	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#reflectionControl">
                 	        Reflection
                         </a>
-                        <div id = "reflectionControl" class= "inCollapse collapse"> 
+                        <div id = "reflectionControl" class= "inCollapse collapse">
                             <div class="imgbox_container">
                 	   	       <h6>Foreground image</h6>
                 	   	       <div>
@@ -932,9 +976,9 @@
                                         </ul>
                                     </div>
                                 </div>
-                                
+
                             </div>
-                           
+
                             <div class="slider_container">
                                 <span class="h6 inlineBlock"> Shift X</span>
                                 <div class="pull-right">
@@ -989,7 +1033,7 @@
                            	        <input id="bluriness_slider" data-slider-id='customSlider' type="text"/>
                                 </div>
                             </div> -->
-            	       </div>	
+            	       </div>
                     </li>
                     <!-- Timer -->
                     <li class="panel">
@@ -999,19 +1043,19 @@
                         <script>
                             date_value = 0
                         </script>
-                        <div id="time_zone">   
+                        <div id="time_zone">
                             Date:
                         </div>
 
                         <!--div class="slider_container">
-                            <span class="h6 inlineBlock"> Time by Day </span>   
+                            <span class="h6 inlineBlock"> Time by Day </span>
                             <div class="pull-right">
                                 <input type="text" class="form-control mytextbox text-center" id="day_val">
-                            </div>                             
+                            </div>
                             <div class="slider_box">
-                                <input id="day_slider" 
-                                        data-slider-id='customSlider' 
-                                        type="text" 
+                                <input id="day_slider"
+                                        data-slider-id='customSlider'
+                                        type="text"
                                         data-provider="slider"
                                         data-slider-max=20000
                                         data-slider-min=0
@@ -1031,14 +1075,14 @@
                         </div>
                     </li>
                     <!-- ColorChanger -->
-                        
+
 
                     <!--Ambient Occlusion-->
                     <!-- <li class="panel">
                         <a class = "myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#aoControl">
-                            Ambient Occlusion                           
+                            Ambient Occlusion
                         </a>
-                        <div id = "aoControl" class= "inCollapse collapse"> 
+                        <div id = "aoControl" class= "inCollapse collapse">
                             <div class="checkbox">
                                 <label>
                                     <span class = "h6 inlineBlock"> Show Ambient </span>
@@ -1066,14 +1110,14 @@
                                     <input id="amb_numberOfSample_slider" data-slider-id='customSlider' type="text"/>
                                 </div>
                             </div>
-                        </div>  
+                        </div>
                     </li> -->
                     <!--Quality-->
                     <!-- <li class="panel">
             	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href=" #qualityControl">
-                    	    Quality 
+                    	    Quality
                         </a>
-                        <div id = "qualityControl" class= "inCollapse collapse"> 
+                        <div id = "qualityControl" class= "inCollapse collapse">
                	            <div class="slider_container">
                                 <span class="h6 inlineBlock"> Shape Map Quality </span>
                                 <div class="pull-right">
@@ -1083,7 +1127,7 @@
                            	        <input id="smQuality_slider" data-slider-id='customSlider' type="text"/>
                                 </div>
                             </div>
-            	       </div>	
+            	       </div>
                     </li> -->
                 </ul>
             </div>
@@ -1097,10 +1141,10 @@
                 <script>
                 date_value = 0
                 </script>
-                <div id="time_zone">   
+                <div id="time_zone">
                     Date:
                 </div>
-                <div id = "timeControl" class= "inCollapse collapse"> 
+                <div id = "timeControl" class= "inCollapse collapse">
                     <div class="slider_container">
                         <div> hahahahah </div>
                             <span class="h6 inlineBlock"> Time by Day </span>
@@ -1126,11 +1170,11 @@
     <!-- light templete -->
     <script type="text/template" data-template="light">
         <li class = "panel" data-id ="{{id}}" id = "lightPanel{{id}}">
-            <a class = "myControlTitle myLightsTitle collapsed" data-toggle= "collapse" data-parent= "#accordion_Lights" href="#light{{id}}"> 
+            <a class = "myControlTitle myLightsTitle collapsed" data-toggle= "collapse" data-parent= "#accordion_Lights" href="#light{{id}}">
                 <div class = "destroy" ></div>
                 LIGHT{{id}}
             </a>
-            <div id = "light{{id}}" class= "lightBox inCollapse collapse" > 
+            <div id = "light{{id}}" class= "lightBox inCollapse collapse" >
                 <div class = "checkbox">
                     <label>
                         <span class="h6 inlineBlock" >Diffuse</span>
@@ -1182,27 +1226,27 @@
                         <input id="pointLGTdecay_slider" data-slider-id='customSlider' type="text" />
                     </div>
                 </div>
-                
+
             </div>
         </li>
 
     </script>
 
     <!-- Bootstrap core JavaScript  ================================================== -->
-    <script src="js/bootstrap.min.js"></script> 
+    <script src="js/bootstrap.min.js"></script>
     <script src="js/bootstrap-slider.js"></script>
-    
+
     <!--colorpicker-->
     <script src="js/jquery.minicolors.min.js"></script>
-    
+
     <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
     <script src="js/ie10-viewport-bug-workaround.js"></script>
 
     <!-- More -->
     <script type="text/javascript" src="dragndrop.js"></script>
     <script type="text/javascript" src="cube.js"></script>
-    <script type="text/javascript" src="sliders.js"></script> 
+    <script type="text/javascript" src="sliders.js"></script>
     <script type="text/javascript" src="addLight.js"></script>
-    
+
   </body>
 </html>

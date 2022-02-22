@@ -1,8 +1,8 @@
 $(document).ready(function () {
 
-    
+
     /**************** init checkbox according to default parameters ******************/
-    
+
     var lightsOnlyElem = $('#lightsOnlySelect');
     initCheckbox(lightsOnly, lightsOnlyElem);
 
@@ -11,7 +11,7 @@ $(document).ready(function () {
 
     var checkFresnelElem = $('#checkFresnelSelect');
     initCheckbox(checkFresnel, checkFresnelElem);
-    
+
 
     if (lightsPosition ==1)
     {
@@ -19,17 +19,17 @@ $(document).ready(function () {
     }else{
         $('#lightPosition_container').css("display", "none");
     }
-    
-    
+
+
     /**********************offcanvas.js********************/
     $('[data-toggle="offcanvas"]').click(function () {
         $('.row-offcanvas').toggleClass('active')
     });
-    
 
-      
+
+
     /**********************SliderBar********************************/
-    
+
     /**Basic Image**/
     $("#styleControl_slider").slider({ min: 0, max: 1, value: [styleBright, styleDark], step: 0.01, focus: true });
     $("#styleControl_slider").on("slide", function(slideEvt) {
@@ -55,19 +55,27 @@ $(document).ready(function () {
     alphaInBlue_slider.attr("data-slider-min", 0).attr("data-slider-max", 1).attr("data-slider-step", 0.01).attr("data-slider-value", alphaB).attr("data-slider-tooltip","hide").slider({});
     bindSliderValParam (alphaInBlue_slider, alphaInBlue_val, "alphaB");
 
+    /*Mirror reflection: */
+    var mirrorReflection_slider = $("#mirrorReflection_slider");
+    var mirror_reflection = $("#mirror_reflection");
+    mirrorReflection_slider.attr("data-slider-min", 0).attr("data-slider-max", 1).attr("data-slider-step", 0.01).attr("data-slider-value", reflection_degree_val).attr("data-slider-tooltip","hide").slider({});
+    bindSliderValParam (mirrorReflection_slider, mirror_reflection, "reflection_degree_val");
+
+
+
 
     /**Shadow**/
     $("#sha_sampleSize_slider").slider({min: 0, max: 1, value: 1, step: 0.01, focus: true});
     $("#sha_numberOfSample_slider").slider({min: 0, max: 1, value: 1, step: 0.01, focus: true});
-    
-    
+
+
     /**Ambient**/
     $("#amb_sampleSize_slider").slider({min: 0, max: 1, value: 1, step: 0.01, focus: true});
     $("#amb_numberOfSample_slider").slider({min: 0, max: 1, value: 1, step: 0.01, focus: true});
 
 
     /**Refraction**/
-    
+
     var refr_slider = $("#refraction_slider");
     var refr_val = $("#refraction_val");
     refr_slider.attr("data-slider-min",-1).attr("data-slider-max", 1).attr("data-slider-step", 0.01).attr("data-slider-value", logIOR).attr("data-slider-tooltip","hide").slider({});
@@ -81,10 +89,10 @@ $(document).ready(function () {
     /**Time**/
     cur_date = dateFormat(date_value)
     document.getElementById("time_zone").innerHTML = "Date:" + cur_date
-    
+
     var time_slider = $('#day_slider');
     var time_val = $("#day_val");
-    time_slider.attr("data-slider-min", 0).attr("data-slider-max", 20000).attr("data-slider-step", 1).attr("data-slider-value", date_value).attr("data-slider-tooltip","hide").slider({}); 
+    time_slider.attr("data-slider-min", 0).attr("data-slider-max", 20000).attr("data-slider-step", 1).attr("data-slider-value", date_value).attr("data-slider-tooltip","hide").slider({});
     bindSimpleSliderVal(time_slider, time_val, "date_value");
 
 
@@ -103,9 +111,18 @@ $(document).ready(function () {
 
 
     //$("#translucency_slider").slider({min: 0, max: 1, value: 1, step: 0.01, focus: true});
-    
+
     /**Reflection**/
-    
+
+
+
+
+
+
+
+
+
+
     //reflMap dropdown
     //init
     var way;
@@ -118,9 +135,9 @@ $(document).ready(function () {
     }
     var mystring = way + '<span class=\"caret\"></span>';
     $("#reflMap .btn").html(mystring);
-    
-        
-    
+
+
+
 
     //events
     $("#reflMap").on("hide.bs.dropdown", function(){
@@ -171,24 +188,24 @@ $(document).ready(function () {
 
 
     $("#bluriness_slider").slider({min: 0, max: 1, value: 1, step: 0.01, focus: true});
-    
-    
-    
-    
+
+
+
+
     /*Quality**/
     $("#smQuality_slider").slider({min: 0, max: 1, value: 1, step: 0.01, focus: true});
-    
-    
-     //collapse list +/- toggle	
+
+
+     //collapse list +/- toggle
     /*
      $(".myControlTitle collapsed").on("hide.bs.collapse", function(){
         $(".btn").html('<span class="glyphicon glyphicon-collapse-down"></span> Open');
       });
       $("#demo").on("show.bs.collapse", function(){
         $(".btn").html('<span class="glyphicon glyphicon-collapse-up"></span> Close');
-    */	 
+    */
 
-  
+
 });//end of $(document).ready
 
 
@@ -216,7 +233,7 @@ function setupLightFunctions(i)
     var checkboxName_showSpec = '#lightPanel' + i + ' #specSelect';
     var showSpecElem = $(checkboxName_showSpec);
     initCheckbox(showSpec[i], showSpecElem);
-    
+
     //////slider events
 
     //lightIntensity
@@ -247,8 +264,8 @@ function setupLightFunctions(i)
     var colorPickerName = "#lightPanel" + i + " .colorPicker";
     var colorString = color2hex(lightColor[i]);
     $(colorPickerName).attr("value", colorString);
-    
-    
+
+
 
     $(colorPickerName).minicolors({
         position: 'bottom right',
@@ -279,7 +296,7 @@ function setupLightFunctions(i)
             }
         },
     });
-    
+
     //init: add border if it is white#ffffff;
     if (colorString == "#ffffff")
     {
@@ -303,17 +320,17 @@ function bindSliderValParamIndex(slider, val, param, index){
 
 	//update textarea when in slide
 	slider.on("slide", function(slideEvt) {
-		window[param][index] = slideEvt.value;	
+		window[param][index] = slideEvt.value;
 		val.val(window[param][index]);
 	});
-	
+
 	//update slider when textarea change
 	val.on("change", function(){
 		window[param][index] = Number($(this).val());
 		slider.slider("destroy").attr("data-slider-value", window[param][index]).attr("data-value", window[param][index]).attr("value", window[param][index]);
 		slider.slider({});
 		slider.on("slide", function(slideEvt) {
-			window[param][index] = slideEvt.value;	
+			window[param][index] = slideEvt.value;
 			val.val(window[param][index]);
 		});
 	});
@@ -342,17 +359,17 @@ function bindSliderValParam(slider, val, param){
 
     //update textarea when in slide
     slider.on("slide", function(slideEvt) {
-        window[param] = slideEvt.value;  
+        window[param] = slideEvt.value;
         val.val(window[param]);
     });
-    
+
     //update slider when textarea change
     val.on("change", function(){
         window[param] = Number($(this).val());
         slider.slider("destroy").attr("data-slider-value", window[param]).attr("data-value", window[param]).attr("value", window[param]);
         slider.slider({});
         slider.on("slide", function(slideEvt) {
-            window[param] = slideEvt.value;  
+            window[param] = slideEvt.value;
             val.val(window[param]);
         });
     });
@@ -379,21 +396,21 @@ function bindSimpleSliderVal(slider, val, param){
     val.val(window[param]);
     //update textarea when in slide
     slider.on("slide", function(slideEvt) {
-        window[param] = slideEvt.value;  
+        window[param] = slideEvt.value;
         val.val(window[param]);
         _cur_date = dateFormat(window[param]);
-        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
+        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date + "Youli"
     });
-    
+
     val.on("change", function() {
         console.log("wang gong thx！！！!!!!!!!!!")
-        window[param] = Number($(this).val());  
+        window[param] = Number($(this).val());
         //_cur_date = dateFormat(window[param]);
         //document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
         slider.slider("destroy").attr("data-slider-value", window[param]).attr("data-value", window[param]).attr("value", window[param]);
         slider.slider({});
         slider.on("slide", function(slideEvt) {
-            window[param] = slideEvt.value;  
+            window[param] = slideEvt.value;
             val.val(window[param]);
         });
     });
@@ -403,7 +420,7 @@ function bindSimpleSliderVal(slider, val, param){
     //    slider.slider("destroy").attr("data-slider-value", window[param]).attr("data-value", window[param]).attr("value", window[param]);
     //    slider.slider({});
     //    slider.on("slide", function(slideEvt) {
-    //        window[param] = slideEvt.value;  
+    //        window[param] = slideEvt.value;
     //        val.val(window[param]);
     //    });
     //});
@@ -431,17 +448,17 @@ function bindSliderVal(slider, val, param){
 
     //update textarea when in slide
     slider.on("slide", function(slideEvt) {
-        window[param] = slideEvt.value;  
+        window[param] = slideEvt.value;
         val.val(window[param]);
     });
-    
+
     //update slider when textarea change
     val.on("change", function(){
         window[param] = Number($(this).val());
         slider.slider("destroy").attr("data-slider-value", window[param]).attr("data-value", window[param]).attr("value", window[param]);
         slider.slider({});
         slider.on("slide", function(slideEvt) {
-            window[param] = slideEvt.value;  
+            window[param] = slideEvt.value;
             val.val(window[param]);
         });
     });
@@ -502,16 +519,12 @@ function color2hex(color) {
 
 function dateFormat(int_date){
     milisec_time = int_date * 24 * 60 * 60 * 1000
-    var dateTypeDate = "";  
-    var date = new Date();  
-    date.setTime(milisec_time);  
-    
-    dateTypeDate +=  date.getMonth(); //月  
-    dateTypeDate += "-" + date.getDay(); //日  
-    dateTypeDate += "-" + date.getFullYear(); //年  
-    return dateTypeDate; 
-}  
+    var dateTypeDate = "";
+    var date = new Date();
+    date.setTime(milisec_time);
 
-
-
-
+    dateTypeDate +=  date.getMonth(); //月
+    dateTypeDate += "-" + date.getDay(); //日
+    dateTypeDate += "-" + date.getFullYear(); //年
+    return dateTypeDate;
+}
