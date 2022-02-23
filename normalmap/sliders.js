@@ -400,7 +400,7 @@ function bindSimpleSliderVal(slider, val, param){
         window[param] = slideEvt.value;
         val.val(window[param]);
         _cur_date = dateFormat(window[param]);
-        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date + "Youli"
+        document.getElementById("time_zone").innerHTML = "Date:" + _cur_date
     });
 
     val.on("change", function() {

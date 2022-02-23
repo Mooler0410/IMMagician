@@ -16,14 +16,15 @@
 
     <!-- Bootstrap core CSS -->
     <link href="css/bootstrap.css" rel="stylesheet"> <!--have bootstrap.min.css-->
-	<link href="css/offcanvas.css" rel="stylesheet">
+	  <link href="css/offcanvas.css" rel="stylesheet">
     <link href="css/bootstrap-slider.css" rel="stylesheet">
     <link href="css/jquery.minicolors.css" rel="stylesheet">
 
 
     <!-- Custom styles for this template -->
     <link href="css/mock3d.css" rel="stylesheet">
-
+    <!--<script src="math.js" type="text/javascript"></script> -->
+    <script src=https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js></script>
     <script id="vertex-shader" type="x-shader/x-vertex">
         #define max_lights 14
 
@@ -241,12 +242,13 @@
         {
 
             float reflectIntensity = 1.0;
-            vec4 noise = vec4(0.23, 0.57, 0.84,1.0);
             vec3 reflect = - 1.0 * vec3(0.0, 0.0, 1.0) + 2.0 * dot(n, vec3(0.0, 0.0, 1.0)) * n;
             vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5) ;//+ vLight0.xy ;
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
                 reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
                 reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
+                vec2 noise = vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+                reflCoord = reflCoord + reflection_degree * noise;
                 if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
                 {
                     reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
@@ -266,14 +268,13 @@
             vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
 
             vec3 time_color = dayTime * vec3(0.3, -0.5, -0.15) + vec3(1.0, 0.75, 0.15);
-			reflColor += vec4(time_color, 1.0);
+			      reflColor += vec4(time_color, 1.0);
 
 
             if (checkFresnel )
             {
                 reflColor = vec4(1.0,1.0,1.0,1.0);
             }
-            reflColor = (1.0 - reflection_degree) * reflColor + reflection_degree * noise;
             return reflColor.rgb * reflectIntensity;
         }
 
@@ -335,11 +336,12 @@
         {
 
             float reflectIntensity = 1.0;
-            vec4 noise = vec4(0.49, 0.37, 0.54,1.0);
             vec2 reflCoord = f_texcoord + n.xy/n.z * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5);
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
                 reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
                 reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
+                vec2 noise = vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+                reflCoord = reflCoord + reflection_degree * noise;
                 if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
                 {
                     reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
@@ -360,13 +362,12 @@
             vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
 
             vec3 time_color = dayTime * vec3(0.3, -0.5, -0.15) + vec3(1.0, 0.75, 0.15);
-			reflColor += vec4(time_color, 1.0);
+		        reflColor += vec4(time_color, 1.0);
 
             if (checkFresnel)
             {
                 reflColor = vec4(1.0,1.0,1.0,1.0);
             }
-            reflColor = (1.0 - reflection_degree) * reflColor + reflection_degree * noise;
             return reflColor.rgb * reflectIntensity;
         }
 
@@ -853,7 +854,7 @@
 
                             <!--  Project 2 alpha task   -->
                             <div class="slider_container">
-                                <span class="h6 inlineBlock"> Mirror Reflection </span>
+                                <span class="h6 inlineBlock"> Noise Degree</span>
                                 <div class="pull-right">
                                      <input type="text" class="form-control mytextbox text-center" id="mirror_reflection">
                                 </div>
