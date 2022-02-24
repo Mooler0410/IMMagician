@@ -247,7 +247,7 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
                 reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
                 reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-                vec2 noise = vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+                vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
                 reflCoord = reflCoord + reflection_degree * noise;
                 if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
                 {
@@ -340,7 +340,7 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
                 reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
                 reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-                vec2 noise = vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+                vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
                 reflCoord = reflCoord + reflection_degree * noise;
                 if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
                 {
