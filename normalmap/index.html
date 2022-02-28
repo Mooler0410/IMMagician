@@ -115,6 +115,7 @@
         uniform float fresnelB;
         uniform float fresnelC;
         uniform bool checkFresnel;
+        uniform bool trueRefraction;
 
         vec4 normal()
         {
@@ -192,20 +193,6 @@
             return alphaMap.rgb;
         }
 
-        //Mirror reflection
-        // vec3 mirrorReflection(vec3 n)
-        // {
-        //   float reflectIntensity = 1.0;
-        //   float min = 0.000, max = 1.000;
-        //   float randomNum = Math.random() * (max - min) + min;
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        // }
 
 
 
@@ -247,7 +234,7 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
                 reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
                 reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-                vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+                vec2 noise = vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
                 reflCoord = reflCoord + reflection_degree * noise;
                 if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
                 {
@@ -282,56 +269,9 @@
 
 
 
-        // vec3 reflect1(vec3 n)
-        // {
-
-        //     float reflectIntensity = 1.0;
-
-
-        //     float s = logIOR;
-        //     vec3 l = vec3(0,0,-1);//eye ray
-        //     vec3 temp =  cross (-n, l);
-        //     vec3 Vsurface = cross (temp, -n) ;
-        //     vec3 reflect;
-        //     vec3 origReflect = - 1.0 * vec3(0.0, 0.0, 1.0) + 2.0 * dot(n, vec3(0.0, 0.0, 1.0)) * n;
-
-        //     if ( s >= 0.0 ) reflect = origReflect * (1.0 - (-s)) + (n) * (-s);
-        //     if ( s < 0.0 ) reflect = origReflect * (1.0 - (s) ) + Vsurface * ( s);
-
-
-
-        //     vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy[0].x * 0.5, mouseXYcopy[0].y * 0.5) ;//+ vLight0.xy ;
-        //     vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
-        //         reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
-        //         reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-        //         if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
-        //         {
-        //             reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
-        //             if ( floor(reflCoord.x) / 2.0 == 0.0)
-        //             {
-        //                 reflCoord.x = 1.0 - reflCoord.x;
-        //             }
-        //         }
-        //         if (reflCoord.y > 1.0 || reflCoord.y < 0.0)
-        //         {
-        //             reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
-        //             if ( floor(reflCoord.y) / 2.0 == 0.0)
-        //             {
-        //                 reflCoord.y = 1.0 - reflCoord.y;
-        //             }
-        //         }
-        //     vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
-
-        //     if (checkFresnel )
-        //     {
-        //         reflColor = vec4(1.0,1.0,1.0,1.0);
-        //     }
-        //     return reflColor.rgb * reflectIntensity;
-        // }
-
 
         // Reflected texture is treated as if it is on a hemisphere 1 unit
-            // away from the surface.
+        // away from the surface.
         vec3 reflect2(vec3 n)
         {
 
@@ -340,7 +280,7 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
                 reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
                 reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-                vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+                vec2 noise = vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
                 reflCoord = reflCoord + reflection_degree * noise;
                 if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
                 {
@@ -483,8 +423,14 @@
                 refl = reflect2(n) + specular; //hemisphere
                 if (checkFresnel){refl = reflect2(n);}
             }
-            vec3 refr = refract(n);
-
+            
+            vec3 refr = vec3 (0,0,0);
+            if (trueRefraction){
+                refr = refract(n);
+            }else{  
+                refr = refract2(n);
+            }
+            //vec3 refr = refract(n);
             vec3 fresnel = fresnelBlend(n, refl, refr);
 
             vec4 finalColor = diffuse;
@@ -900,6 +846,15 @@
                                 <div class="slider_box">
                                     <input id="refr_BGdis_slider" data-slider-id='customSlider' type="text" />
                                 </div>
+                            </div>
+                            <div class="checkbox">
+                                <label>
+                                    <span class = "h6 inlineBlock"> True/Fake Refraction </span>
+                                    <div class = "checkbox_container pull-right">
+                                        <input type="checkbox" id ="trueRefractionSelect">
+                                        <div class = "pseudoCheckbox"></div>
+                                    </div>
+                                </label>
                             </div>
                             <div class = "fresnel_container">
                                 <div class = "fresnelPanel">

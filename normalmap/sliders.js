@@ -12,6 +12,9 @@ $(document).ready(function () {
     var checkFresnelElem = $('#checkFresnelSelect');
     initCheckbox(checkFresnel, checkFresnelElem);
 
+    var trueRefractionElem = $('#trueRefractionSelect');
+    initCheckbox(trueRefraction, trueRefractionElem);
+
 
     if (lightsPosition ==1)
     {

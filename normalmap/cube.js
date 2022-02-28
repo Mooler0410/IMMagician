@@ -56,6 +56,7 @@ var fresnelIntensity;
 var fresnelB; //cos = 0.95
 var fresnelC; //cos = 0.7
 var checkFresnel;
+var trueRefraction;
 
 function initParameters(){
     lightColor =[1.0, 1.0, 1.0];
@@ -99,6 +100,7 @@ function initParameters(){
     fresnelB = 0.3; //cos = 0.95
     fresnelC = 0.6; //cos = 0.7
     checkFresnel = 0;
+    trueRefraction = 0;
 
     // Height Light parameters
     //hLightDistance = 1.0;
@@ -131,6 +133,7 @@ var logIORLoc, BGdisLoc;
 var FGdisLoc;
 var reflMapLoc;
 var FGshiftXLoc, FGshiftYLoc, FGscaleXLoc, FGscaleXLoc;
+var trueRefractionLoc
 
 var fresnelIntensityLoc;
 var fresnelBLoc, fresnelCLoc;
@@ -343,6 +346,7 @@ window.onload = function init()
     fresnelBLoc = gl.getUniformLocation( program, "fresnelB");
     fresnelCLoc = gl.getUniformLocation( program, "fresnelC");
     checkFresnelLoc = gl.getUniformLocation( program, "checkFresnel");
+    trueRefractionLoc = gl.getUniformLocation( program, "trueRefraction");
 
     render();
 };
@@ -386,7 +390,7 @@ function handleTextureLoaded(image, texture) {
 
 }
 
-
+// The main function to do rendering.
 function render() {
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
 
@@ -395,6 +399,9 @@ function render() {
 
     var checkFresnelElem = $('#checkFresnelSelect:checked');
     checkFresnel = (checkFresnelElem.val())?1:0;
+
+    var trueRefractionElem = $('#trueRefractionSelect:checked');
+    trueRefraction = (trueRefractionElem.val())?1:0;
 
 
     for (var i = 0; i < lightNum ; i++)
@@ -445,11 +452,13 @@ function render() {
     gl.uniform1f(fresnelBLoc, fresnelB);
     gl.uniform1f(fresnelCLoc, fresnelC);
     gl.uniform1i(checkFresnelLoc, checkFresnel);
+    gl.uniform1i(trueRefractionLoc, trueRefraction);
 
     gl.drawArrays( gl.TRIANGLES, 0, numVertices );
 
 
     requestAnimFrame(render);
+    //Call back, keep rendering the animation. 
 }
 
 
