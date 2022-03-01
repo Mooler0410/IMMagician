@@ -28,7 +28,8 @@ showDiffuse[0] = 1;
 var showSpec = [];
 showSpec[0] = 1;
 
-
+var showVersion = [];
+showVersion[0] = 1;
 
 
 var styleBright,
@@ -39,6 +40,8 @@ var alphaG;
 var alphaB;
 var reflection_degree_val;
 var timeVal;
+
+
 
 var logIOR5;//[-1, 1]
 var BGdis;
@@ -56,7 +59,7 @@ var fresnelIntensity;
 var fresnelB; //cos = 0.95
 var fresnelC; //cos = 0.7
 var checkFresnel;
-var trueRefraction;
+var realVersion;
 
 function initParameters(){
     lightColor =[1.0, 1.0, 1.0];
@@ -66,6 +69,7 @@ function initParameters(){
     pointLightDecay[0] = 0.0;
     showDiffuse[0] = 1;
     showSpec[0] = 1;
+    showVersion[0] = 1;
 
     timeVal = 0;
 
@@ -82,6 +86,7 @@ function initParameters(){
     alphaG = 1;
     alphaB = 1;
     reflection_degree_val = 1;
+
 
     //refraction parameters
     logIOR = 0.25;//[-1, 1]
@@ -100,7 +105,7 @@ function initParameters(){
     fresnelB = 0.3; //cos = 0.95
     fresnelC = 0.6; //cos = 0.7
     checkFresnel = 0;
-    trueRefraction = 0;
+    realVersion = 0;
 
     // Height Light parameters
     //hLightDistance = 1.0;
@@ -118,6 +123,7 @@ var mouseLoc;
 var timeLoc;
 var reflection_degree_loc;
 
+
 var lightsOnlyLoc;
 var lightColorLoc;
 var lightIntensityLoc;
@@ -126,6 +132,7 @@ var pointLightDecayLoc;
 
 var showDiffuseLoc;
 var showSpecLoc;
+var showVersionLoc;
 
 var styleBrightLoc, styleDarkLoc;
 var alphaRLoc, alphaGLoc, alphaBLoc;
@@ -133,11 +140,11 @@ var logIORLoc, BGdisLoc;
 var FGdisLoc;
 var reflMapLoc;
 var FGshiftXLoc, FGshiftYLoc, FGscaleXLoc, FGscaleXLoc;
-var trueRefractionLoc
 
 var fresnelIntensityLoc;
 var fresnelBLoc, fresnelCLoc;
 var checkFresnelLoc;
+var realVersionLoc;
 
 
 /****************** For Basic shader ******************/
@@ -324,6 +331,7 @@ window.onload = function init()
     pointLightDisLoc = gl.getUniformLocation( program, "pointLightDis");
     pointLightDecayLoc = gl.getUniformLocation( program, "pointLightDecay");
 
+    showVersionLoc = gl.getUniformLocation( program, "showVersion");
 
     styleBrightLoc = gl.getUniformLocation( program, "styleBright");
     styleDarkLoc = gl.getUniformLocation( program, "styleDark");
@@ -342,12 +350,12 @@ window.onload = function init()
 
     reflection_degree_loc = gl.getUniformLocation( program, "reflection_degree");
 
+
     fresnelIntensityLoc = gl.getUniformLocation ( program, "fresnelIntensity");
     fresnelBLoc = gl.getUniformLocation( program, "fresnelB");
     fresnelCLoc = gl.getUniformLocation( program, "fresnelC");
     checkFresnelLoc = gl.getUniformLocation( program, "checkFresnel");
-    trueRefractionLoc = gl.getUniformLocation( program, "trueRefraction");
-
+    realVersionLoc = gl.getUniformLocation( program, "realVersion");
     render();
 };
 
@@ -390,7 +398,7 @@ function handleTextureLoaded(image, texture) {
 
 }
 
-// The main function to do rendering.
+
 function render() {
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
 
@@ -400,8 +408,8 @@ function render() {
     var checkFresnelElem = $('#checkFresnelSelect:checked');
     checkFresnel = (checkFresnelElem.val())?1:0;
 
-    var trueRefractionElem = $('#trueRefractionSelect:checked');
-    trueRefraction = (trueRefractionElem.val())?1:0;
+    var realVersionElem = $('#realVersionSelect:checked');
+    realVersion = (realVersionElem.val())?1:0;
 
 
     for (var i = 0; i < lightNum ; i++)
@@ -413,6 +421,10 @@ function render() {
         var checkboxName_showSpec = '#lightPanel' + i + ' #specSelect:checked';
         var showSpecElem = $(checkboxName_showSpec);
         showSpec[i] = (showSpecElem.val())?1:0;
+
+        var checkboxName_showVersion = '#lightPanel' + i + ' #versionSelect:checked';
+        var showVersionElem = $(checkboxName_showVersion);
+        showVersion[i] = (showVersionElem.val())?1:0;
 
     }
 
@@ -429,6 +441,8 @@ function render() {
     gl.uniform1iv(showSpecLoc, showSpec);
     gl.uniform1fv(pointLightDisLoc, pointLightDis);
     gl.uniform1fv(pointLightDecayLoc, pointLightDecay);
+
+    gl.uniform1iv(showVersionLoc, showVersion);
 
     gl.uniform1f(styleBrightLoc, styleBright);
     gl.uniform1f(styleDarkLoc, styleDark);
@@ -448,17 +462,18 @@ function render() {
 
     gl.uniform1f(reflection_degree_loc, reflection_degree_val);
 
+
     gl.uniform1f(fresnelIntensityLoc, fresnelIntensity);
     gl.uniform1f(fresnelBLoc, fresnelB);
     gl.uniform1f(fresnelCLoc, fresnelC);
     gl.uniform1i(checkFresnelLoc, checkFresnel);
-    gl.uniform1i(trueRefractionLoc, trueRefraction);
+    gl.uniform1f(realVersionLoc,realVersion);
+
 
     gl.drawArrays( gl.TRIANGLES, 0, numVertices );
 
 
     requestAnimFrame(render);
-    //Call back, keep rendering the animation. 
 }
 
 

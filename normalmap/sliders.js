@@ -12,9 +12,8 @@ $(document).ready(function () {
     var checkFresnelElem = $('#checkFresnelSelect');
     initCheckbox(checkFresnel, checkFresnelElem);
 
-    var trueRefractionElem = $('#trueRefractionSelect');
-    initCheckbox(trueRefraction, trueRefractionElem);
-
+    var realVersionElem = $('#realVersionSelect');
+    initCheckbox(realVersion, realVersionElem);
 
     if (lightsPosition ==1)
     {
@@ -236,6 +235,11 @@ function setupLightFunctions(i)
     var checkboxName_showSpec = '#lightPanel' + i + ' #specSelect';
     var showSpecElem = $(checkboxName_showSpec);
     initCheckbox(showSpec[i], showSpecElem);
+
+    var checkboxName_showVersion = '#lightPanel' + i + ' #versionSelect';
+    var showVersionElem = $(checkboxName_showVersion);
+    initCheckbox(showVersion[i], showVersionElem);
+
 
     //////slider events
 
