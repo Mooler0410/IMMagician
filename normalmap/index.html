@@ -452,14 +452,8 @@
                 fresnel = 1.0 * fresnelIntensity + fresnel * ( 1.0 - fresnelIntensity);
                 return refl * fresnel + refr * ( 1.0 - fresnel );
             }else{
-                if (realVersion == true){
-                    fresnel = fresnel * (1.0 - fresnelIntensity);
-                    return refr;
-                }
-                else {
-                    fresnel = fresnel * (1.0 + fresnelIntensity);
-                    return refl * fresnel + refr * ( 1.0 - fresnel );
-                }
+                fresnel = fresnel * (1.0 + fresnelIntensity);
+                return refl * fresnel + refr * ( 1.0 - fresnel );
             }
 
 
@@ -492,12 +486,14 @@
                 refl = reflect2(n) + specular; //hemisphere
                 if (checkFresnel){refl = reflect2(n);}
             }
-            vec3 refr = refract(n);
-
-
-            
+            vec3 refr;
+            if(realVersion){
+                refr = refract2(n);
+            }
+            else{
+                refr = refract(n);
+            }
             vec3 fresnel = fresnelBlend(n, refl, refr);
-            
 
             vec4 finalColor = diffuse;
 
