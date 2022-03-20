@@ -250,7 +250,7 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
                 reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
                 reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-                vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+                vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 33758.5453));
                 reflCoord = reflCoord + reflection_degree * noise;
                 if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
                 {
@@ -419,34 +419,56 @@
         vec3 fresnelBlend(vec3 n, vec3 refl, vec3 refr)
         {
             float cos = dot(n, vec3(0, 0, 1.0) );
-            float N = (logIOR + 1.0) / 2.0;
-            float Amin = 0.02,
-                  Amax = 0.3;
-            float Cmin = 0.4,
-                  Cmax = 1.0;
-
-            float A = Amin * ( 1.0 - N ) + Amax * N;
-            float B = 0.0;
-            float C = Cmin * ( 1.0 - N ) + Cmax * N;
-            float D = 1.0;
-
-            float num1 = sqrt( 1.0 - fresnelB * fresnelB );
-            float num2 = sqrt( 1.0 - fresnelC * fresnelC );
-            // float num1 = fresnelC ;
-            // float num2 = fresnelB ;
-
             float fresnel;
-            float F;
-            if ( 1.0 > cos && cos > num1 ) {
-                F = ( cos - num1 ) / ( 1.0 - num1 );
-                fresnel = A * F  + B * ( 1.0 - F ) ;
-            }else if ( num1 > cos && cos > num2 ){
-                F = ( cos - num2 ) / ( num1 - num2 );
-                fresnel = B * F + C * ( 1.0 - F );
-            }else if ( num2 > cos && cos > 0.0){
-                F = ( cos - 0.0 ) / ( num2 - 0.0 );
-                fresnel = C * F + D * ( 1.0 - F );
+            if (realVersion) {
+                float ior = pow(2.0, logIOR);
+                ior = 1.0 / ior;
+
+                float square = 1.0 - ior * ior * (1.0 - cos * cos);
+                if (square < 0.0) {
+                    square = 0.0;
+                }
+
+                float rs = (ior * cos - square) / (ior * cos + square);
+                rs = rs * rs;
+
+                float rp = (ior * square - cos) / (ior * square + cos);
+                rp = rp * rp;
+
+
+                fresnel = (rs + rp) / 2.0;
             }
+            else {
+                float N = (logIOR + 1.0) / 2.0;
+                float Amin = 0.02,
+                      Amax = 0.3;
+                float Cmin = 0.4,
+                      Cmax = 1.0;
+    
+                float A = Amin * ( 1.0 - N ) + Amax * N;
+                float B = 0.0;
+                float C = Cmin * ( 1.0 - N ) + Cmax * N;
+                float D = 1.0;
+    
+                float num1 = sqrt( 1.0 - fresnelB * fresnelB );
+                float num2 = sqrt( 1.0 - fresnelC * fresnelC );
+                // float num1 = fresnelC ;
+                // float num2 = fresnelB ;
+    
+                fresnel;
+                float F;
+                if ( 1.0 > cos && cos > num1 ) {
+                    F = ( cos - num1 ) / ( 1.0 - num1 );
+                    fresnel = A * F  + B * ( 1.0 - F ) ;
+                }else if ( num1 > cos && cos > num2 ){
+                    F = ( cos - num2 ) / ( num1 - num2 );
+                    fresnel = B * F + C * ( 1.0 - F );
+                }else if ( num2 > cos && cos > 0.0){
+                    F = ( cos - 0.0 ) / ( num2 - 0.0 );
+                    fresnel = C * F + D * ( 1.0 - F );
+                }
+            }
+           
 
             if (fresnelIntensity > 0.0){
                 fresnel = 1.0 * fresnelIntensity + fresnel * ( 1.0 - fresnelIntensity);
@@ -463,6 +485,7 @@
 
 
         }
+
 
         void main()
         {
@@ -494,6 +517,7 @@
                 refr = refract(n);
             }
             vec3 fresnel = fresnelBlend(n, refl, refr);
+            
 
             vec4 finalColor = diffuse;
 
@@ -685,7 +709,7 @@
                                     </div>
                                 </div>
                             </div>
-			     <div class = "imgbox_container hidden">
+			                <div class = "imgbox_container hidden">
                           	    <h6>Size Image</h6>
                         		<div>
                                     <div id = "container7" class="imgThumb_container">
@@ -707,6 +731,86 @@
                           	     </div>
                             </div>
                     	</div>
+                    </li>
+                    <!-- Timer -->
+                    <li class="panel">
+            	        <a class="myControlTitle collapsed" data-parent = "#accordion_L" data-toggle="collapse" href="#TimeControl">
+                            Time
+                        </a>
+                        <script>
+                            date_value = 0
+                        </script>
+                        <div id = "TimeControl" class= "inCollapse collapse">
+                            <!-- This area can be folded -->
+                            <div id="time_zone">
+                                Date:
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Time by Day </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="day_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="day_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    <!-- Noise -->
+                    <li class="panel">
+            	        <a class="myControlTitle collapsed" data-parent = "#accordion_L" data-toggle="collapse" href="#NoiseControl">
+                            Noise
+                        </a>
+                        <!--  Project 2 alpha task   -->
+                        <div id = "NoiseControl" class= "inCollapse collapse">
+                            <!-- This area can be folded -->
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Glossy Degree</span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="mirror_reflection">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="mirrorReflection_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    <!--Refraction-->
+                    <li class="panel">
+            	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_L" href="#hw3Control">
+                	        RealorFake
+                        </a>
+                        <div id = "hw3Control" class= "inCollapse collapse">
+                            <div class = "fresnel_container">
+                                <div class = "fresnelPanel">
+                                    <div class = "myFresnelTitle">
+                                        FRESNEL Real Or Fake
+                                    </div>
+                                    <div class = "fresnelBox">
+                                        <!--proj 3 here start-->
+                                        <div class = "checkbox">
+                                            <label>
+                                                <span class="h6 inlineBlock" >Real Version</span>
+                                                <div class = "checkbox_container pull-right">
+                                                    <input type="checkbox" id = "realVersionSelect" >
+                                                    <div class = "pseudoCheckbox"></div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <!--proj 3 here end-->
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- <div class="slider_container">
+                                <span class="h6 inlineBlock"> Translucency </span>
+                                <div class="pull-right">
+                       	            <input type="text" class="form-control mytextbox text-center" id="translucency_val" value="1">
+                                </div>
+                                <div class="slider_box">
+                       	            <input id="translucency_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div> -->
+            	        </div>
                     </li>
                 </ul>
             </div>
@@ -861,16 +965,6 @@
                                 </div>
                             </div>
 
-                            <!--  Project 2 alpha task   -->
-                            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Noise Degree</span>
-                                <div class="pull-right">
-                                     <input type="text" class="form-control mytextbox text-center" id="mirror_reflection">
-                                </div>
-                                <div class="slider_box">
-                                    <input id="mirrorReflection_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div>
 
 
                         </div>
@@ -1065,30 +1159,7 @@
                             </div> -->
             	       </div>
                     </li>
-                    <!-- Timer -->
-                    <li class="panel">
-            	        <a class="myControlTitle collapsed" data-parent = "#accordion_R" data-toggle="collapse" href="#TimeControl">
-                            Time
-                        </a>
-                        <script>
-                            date_value = 0
-                        </script>
-                        <div id = "TimeControl" class= "inCollapse collapse">
-                            <!-- This area can be folded -->
-                            <div id="time_zone">
-                                Date:
-                            </div>
-                            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Time by Day </span>
-                                <div class="pull-right">
-                                    <input type="text" class="form-control mytextbox text-center" id="day_val">
-                                </div>
-                                <div class="slider_box">
-                                    <input id="day_slider" data-slider-id='customSlider' type="text" />
-                                </div>
-                            </div>
-                        </div>
-                    </li>
+                    
                     <!-- ColorChanger -->
 
 
