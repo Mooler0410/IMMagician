@@ -77,7 +77,7 @@
         precision mediump float;
 
         varying vec2 f_texcoord;
-        varying vec3 fNormal;//(0,0,1)
+        varying vec3 fNormal; //(0,0,1)
 
         varying float lightN;
 
@@ -113,13 +113,13 @@
         uniform float FGscaleY;
 
         uniform float dayTime;
-        uniform cameraDistance;
-        uniform cameraX;
-        uniform cameraY;
-        uniform cameraZ;
-        uniform viewX;
-        uniform viewY;
-        uniform viewZ;
+        uniform float cameraDistance;
+        uniform float cameraX;
+        uniform float cameraY;
+        uniform float cameraZ;
+        uniform float viewX;
+        uniform float viewY;
+        uniform float viewZ;
 
         uniform float fresnelIntensity;
         uniform float fresnelB;
@@ -146,20 +146,27 @@
             //zi = k * npe.z + ep.z
             //(k * npe.x + ep.x) * ni.x + (k * npe.y + ep.y) * ni.y + (k * npe.z + ep.z) * ni.z = 
 
-            float k = (- ( ep.x * ni.x + ep.y * ni.y + ep.z * ni.z)) / (npe.x * ni.x + npe.y * ni.y + npe.z * ni.z);
-            return k;  // ep + k * npe
+            if  (dot(ni, (ep - pi)) > 0.){
+                float k = - dot(ni, (ep - pi)) / dot(ni, npe);
+                //float k = (- ( ep.x * ni.x + ep.y * ni.y + ep.z * ni.z)) / (npe.x * ni.x + npe.y * ni.y + npe.z * ni.z);
+                return k;  // ep + k * npe
+            }
+            else{
+                return 4096.0;
+            }
         }
         vec3 plane_normal_solver(vec3 ni){
             return normalize(ni); //plain solution
         }
 
 
-        vec3 sphere_intersect_solver(vec3 pi, float radius, vec3 ep, vec3 npe, ){
+        float sphere_intersect_solver(vec3 pi, float radius, vec3 ep, vec3 npe){
             // ((ep + k * npe) - (pi - ep))^2 = radius^2
-            float b = dot(npe, (pi -pe));
-            float c = dot((pe - pi), (pe - pi)) - radius * radius;
+
+            float b = dot(npe, (pi - ep));
+            float c = dot((ep - pi), (ep - pi)) - radius * radius;
             float delta = b*b - c;
-            if delta < 0{
+            if (delta < 0.) {
                 return 4096.0;
             }
             else{
@@ -167,7 +174,7 @@
                 return t;
             }
         }
-        vec3 sphere_normal_solver(vec3 pi, float radius, vec3 ep, vec3 npe, ){
+        vec3 sphere_normal_solver(vec3 pi, float radius, vec3 ep, vec3 npe){
             // ((ep + k * npe) - (pi - ep))^2 = radius^2
             float b = dot(npe, (pi -ep));
             float c = dot((ep - pi), (ep - pi)) - radius * radius;
@@ -175,29 +182,29 @@
 
             float t = b - sqrt(delta); //b, 必须已经大于0了。
 
-            vec3 intersect_norm = (ep + k * npe - (pi - le));
+            vec3 intersect_norm = (ep + t * npe - (pi - ep)); //106
             return normalize(intersect_norm);
         }
 
 
-        vec3 Cylinder_intersect_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ep, vec3 npe, vec3 v2, vec3 vup){
+        float Cylinder_intersect_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ep, vec3 npe, vec3 v2, vec3 vup){
             //a02=1,a12=1, a22=0, a21=0, a00=−1,
 
-            float a00 = -1; //for all cyliner.
+            float a00 = -1.; //for all cyliner.
             vec3 n0 = normalize(cross(v2, vup));
             vec3 n1 = normalize(cross(v2, n0));
             
             float A = a02*(dot(n0,npe)/s0)*(dot(n0,npe)/s0) + a12*(dot(n1,npe)/s1) * (dot(n1,npe)/s1);
-            float B = a02*2*(dot(n0,npe)/s0)*(dot(n0, ep-pc)/s0) + a12*2*(dot(n1,npe)/s1)*(dot(n1, ep-pc)/s1);
-            float C = a02*(dot(n0, ep-pc)/s0)*(dot(n0, ep-pc)/s0) + a12*2*(dot(n1, ep-pc)/s1)*(dot(n1, ep-pc)/s1);
+            float B = a02*2.0*(dot(n0,npe)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1,npe)/s1)*(dot(n1, ep-pc)/s1);
+            float C = a02*(dot(n0, ep-pc)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1, ep-pc)/s1)*(dot(n1, ep-pc)/s1);
 
-            float delta = B*B - 4*A*C;
-            if delta < 0{
+            float delta = B*B - 4.0*A*C;
+            if (delta < 0.) {
                 return 4096.0; //Huge distance;
             }
             else{
-                float t = (- B - sqrt(delta)) / (2*A);
-                if t > 0{
+                float t = (- B - sqrt(delta)) / (2.0*A);
+                if (t > 0.) {
                     return t;
                 }
                 else{
@@ -209,13 +216,13 @@
         vec3 Cylinder_normal_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ph, vec3 npe, vec3 v2, vec3 vup){
             //a02=1,a12=1, a22=0, a21=0, a00=−1,
 
-            float a00 = -1; //for all cyliner.
+            float a00 = -1.0; //for all cyliner.
             vec3 n0 = normalize(cross(v2, vup));
             vec3 n1 = normalize(cross(v2, n0));
 
 
-            float w0 = 2 * a02 * (dot(n0, ph-pc)/s0/s0;
-            float w1 = 2 * a12 * (dot(n1, ph-pc)/s1/s1;
+            float w0 = 2.0 * a02 * dot(n0, ph-pc)/s0/s0;
+            float w1 = 2.0 * a12 * dot(n1, ph-pc)/s1/s1;
 
             vec3 norm_h = n0 * w0 + n1 * w1;
 
@@ -234,10 +241,15 @@
                 if (float(i)< float(lightN))
                 {
                     vec3 vLight = normalize( pLight[i] - currentP);
-                    //float cosTheta = max( dot(n, vLight), 0.0);
                     float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
                     float t = (cosTheta - styleDark) / (styleBright - styleDark);
                     if (t>1.0) t=1.0; if (t<0.0) t=0.0;
+                    
+                    //if (smoothStep)
+                    //{
+                    //    t = t * t * (3.0 - 2.0 * t);
+                    //}
+
                     if ( showDiffuse[i] )
                     {
                         float dis = length( pLight[i] - currentP );
@@ -253,8 +265,11 @@
 
             vec4 T = color;//lightWeight;
 
-            vec4 c0 = texture2D(uSamplerColor0, vec2(f_texcoord.s, f_texcoord.t) );//dark
-            vec4 c1 = texture2D(uSamplerColor1, vec2(f_texcoord.s, f_texcoord.t) );//bright
+            //vec4 c0 = texture2D(uSamplerColor0, vec2(f_texcoord.s, f_texcoord.t) );//dark
+            //vec4 c1 = texture2D(uSamplerColor1, vec2(f_texcoord.s, f_texcoord.t) );//bright
+
+            vec4 c0 = vec4(0.0,0.0,0.0,1.0);//dark
+            vec4 c1 = vec4(1.0,1.0,1.0,1.0);//bright
 
             vec4 colorFinal = c0 * (1.0 - T) + c1 * T;
 
@@ -278,9 +293,8 @@
 
 
         // 重点修改对象。
-        vec3 spec(vec3 n, vec3 viewVector, vec3 currentP,)
+        vec3 spec(vec3 n, vec3 viewVector, vec3 currentP)
         {
-            vec3 currentP = vec3(f_texcoord.s - 0.5, f_texcoord.t-0.5, 0.0);
             vec3 finalSpec = vec3(0.0, 0.0, 0.0);
 
             for (int i = 0; i < max_lights; i++)
@@ -290,11 +304,10 @@
                     vec3 vLight = normalize( pLight[i] - currentP); //哦，plight，nmd，是点光源。
                     if (showSpec[i] ){
                         vec3 specColor = lightColor[i];
-                        //vec3 viewVector = vec3(0.0, 0.0, 1.0); // eyesight from z axis. 
                         vec3 RVector = - vLight + 2.0 * dot(n, vLight) * n ;
                         float temp = dot(RVector, viewVector);
                         if ( temp < 0.0 ) temp = 0.0;
-                        float spec = pow(temp, 200.0); // 镜面反射的强度。specular reflect.
+                        float spec = pow(temp, 20.0); // 镜面反射的强度。specular reflect.
                         finalSpec += specColor * spec; //各种光的混合光。
                     }
                 }else{
@@ -472,15 +485,19 @@
 
             vec3 pe = cameraDistance * vec3(cameraX, cameraY, cameraZ);// pe is the original position of the eye camera.
 
-            vec3 n2 = normalize(vec3(viewX, viewY, viewZ); //start from zero, camera direction;  
+            //vec3 n2 = normalize(vec3(viewX, viewY, viewZ)); //start from zero, camera direction;  
+            vec3 n2 = normalize(vec3(0.0,0.0,0.0) - pe); //centrilize.
+            
+            n2 = normalize(n2 + vec3(viewX, viewY, viewZ));
+
             vec3 V_up = vec3(0.0, 0.0, 1.0);
             vec3 n0 = normalize(cross(n2, V_up));
             vec3 n1 = normalize(cross(n0, n2));
 
-            float screen_distance = 3.0;
+            float screen_distance = 4.0;
 
-            float s0 = 1.0;
-            float s1 = 1.0;
+            float s0 = 5.; //width and height.
+            float s1 = 7.;
             vec3 pc = pe + screen_distance * n2;
             vec3 p00 = pc - (s0 * n0 + s1 * n1) / 2.0;
 
@@ -493,63 +510,66 @@
             vec3 cur_posi; //final position and final distance
             
             //plane
-            vec3 plane_ni = vec3(0., 0., 1.,); // plane norm direction.
-            vec3 plane_color = vec3(0.4, 0.2, 0.3);
-            vec3 plane_position = vec3(1.0, 0., 0.); //plane position
+            vec3 plane_ni = vec3(1., 0., 0.); // plane norm direction.
+            vec3 plane_color = vec3(0.5, 0.5, 0.);
+            vec3 plane_position = vec3(1., 1., 0.); //plane position
 
             float plane_d = plane_intersect_solver(plane_position, plane_ni, pe, npe);
             vec3 plane_norm = plane_ni;
 
             //sphere
-            vec3 sphere_position = vec3(1.0, 0., 0.); // plane norm direction.
-            vec3 sphere_color = vec3(0.2, 0.4, 0.3);
+            vec3 sphere_position = vec3(3.0, 0.0, 1.0); // plane norm direction.
+            vec3 sphere_color = vec3(0., 0.5, 0.5);
             float sphere_radius = 2.0;
 
             float sphere_d = sphere_intersect_solver(sphere_position, sphere_radius, pe, npe);
             vec3 sphere_norm = sphere_normal_solver(sphere_position, sphere_radius, pe, npe);
 
             //Cyliner.
-            vec3 v2 = vec3(4., 4., 7.); 
+            vec3 v2 = vec3(0, 0., 1.); 
             vec3 vup = vec3(1., 0., 0.0);
-            vec3 cylinder_color = vec3(0.2, 0.3, 0.4);
-            vec3 cylinder_position = vec3(2, 1, 1.9);
+            vec3 cylinder_color = vec3(0.5, 0., 0.5);
+            vec3 cylinder_position = vec3(6.0, 4.0, 4.0);
             
-            float s0 = 9.;
-            float s1 = 5.;
             float a02 = 1. ;
             float a12 = 1. ;
 
             float cylinder_d = Cylinder_intersect_solver(s0, s1, a02, a12, cylinder_position, pe, npe, v2, vup);
-            float cylinder_norm = Cylinder_normal_solver(s0, s1, a02, a12, cylinder_position, pe, npe, v2, vup);
+            vec3 cylinder_norm = Cylinder_normal_solver(s0, s1, a02, a12, cylinder_position, pe, npe, v2, vup);
 
-            //choice.
-            
-            float shortest_distance = 4096.0;
+            //Choice            
+            float shortest_distance = 4096.0 ;
+
             vec3 obj_color;
-            if shortest_distance > plane_d{
+
+            if (shortest_distance > cylinder_d) {
+                shortest_distance = cylinder_d;
+                obj_color = cylinder_color;
+                cur_normal = cylinder_norm;
+                cur_posi = pe + cylinder_d * npe;
+            }
+            
+            if (shortest_distance > plane_d) {
                 shortest_distance = plane_d;
                 obj_color = plane_color;
                 cur_normal = plane_norm;
                 cur_posi = pe + plane_d * npe;
             }
             
-            if shortest_distance > sphere_d{
+            
+            if (shortest_distance > sphere_d) {
                 shortest_distance = sphere_d;
                 obj_color = sphere_color;
                 cur_normal = sphere_norm;
                 cur_posi = pe + sphere_d * npe;
             }
 
-            if shortest_distance > cylinder_d{
-                shortest_distance = cylinder_d;
-                obj_color = cylinder_color;
-                cur_normal = cylinder_norm;
-                cur_posi = pe + cylinder_d * npe;
-            }
+        
+            
 
             finalColor = diffuse(cur_normal, cur_posi) + vec4(spec(cur_normal, npe, cur_posi), 1.);
 
-            finalColor.rgb = finalColor.rgb * (1. - 0.5) + 0.5 * intrinsic_color;
+            finalColor.rgb = finalColor.rgb * (1. - 0.5) + 0.5 * obj_color;
             gl_FragColor = finalColor;
         }
     </script>
@@ -700,7 +720,7 @@
                 <img src="img/solidColor.jpg" class="img-responsive" alt="our canvas">
                 -->
                 <div class="canvas_container">
-                    <canvas id="gl-canvas" >
+                    <canvas id="gl-canvas" width="50" height="10" >
                         Oops ... your browser doesn't support the HTML5 canvas element
                     </canvas>
 

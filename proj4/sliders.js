@@ -112,30 +112,30 @@ $(document).ready(function () {
     var cameraz_slider = $("#cameraz_slider");
     var cameraz = $("#cameraz");
     cameraz_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", camera_z).attr("data-slider-tooltip","hide").slider({});
-    bindSliderValParam (cameraz_slider, cameraz, "camera_x");
+    bindSliderValParam (cameraz_slider, cameraz, "camera_z");
 
     /** Camera View **/
 
     var viewx_slider = $("#viewx_slider");
     var viewx = $("#viewx");
-    viewx_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_x).attr("data-slider-tooltip","hide").slider({});
+    viewx_slider.attr("data-slider-min", -1.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_x).attr("data-slider-tooltip","hide").slider({});
     bindSliderValParam (viewx_slider, viewx, "view_x");
 
     var viewy_slider = $("#viewy_slider");
     var viewy = $("#viewy");
-    viewy_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_y).attr("data-slider-tooltip","hide").slider({});
+    viewy_slider.attr("data-slider-min", -1.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_y).attr("data-slider-tooltip","hide").slider({});
     bindSliderValParam (viewy_slider, viewy, "view_y");
 
     var viewz_slider = $("#viewz_slider");
     var viewz = $("#viewz");
-    viewz_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_z).attr("data-slider-tooltip","hide").slider({});
+    viewz_slider.attr("data-slider-min", -1.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_z).attr("data-slider-tooltip","hide").slider({});
     bindSliderValParam (viewz_slider, viewz, "view_z");
 
     /** Camera Zoom **/
 
     var cameradis_slider = $("#cameraDis_slider");
     var cameradis = $("#cameraDis");
-    cameradis_slider.attr("data-slider-min", 4).attr("data-slider-max", 32).attr("data-slider-step", 0.5).attr("data-slider-value", camera_dis).attr("data-slider-tooltip","hide").slider({});
+    cameradis_slider.attr("data-slider-min", 0).attr("data-slider-max", 128).attr("data-slider-step", 1).attr("data-slider-value", camera_dis).attr("data-slider-tooltip","hide").slider({});
     bindSliderValParam (cameradis_slider, cameradis, "camera_dis");
 
     /**Fresnel**/
@@ -155,14 +155,6 @@ $(document).ready(function () {
     //$("#translucency_slider").slider({min: 0, max: 1, value: 1, step: 0.01, focus: true});
 
     /**Reflection**/
-
-
-
-
-
-
-
-
 
 
     //reflMap dropdown
