@@ -41,6 +41,18 @@ var alphaB;
 var reflection_degree_val;
 var timeVal;
 
+//camera
+
+var camera_dis;
+    
+var camera_x;
+var camera_y;
+var camera_z;
+
+var view_x;
+var view_y;
+var view_z;
+
 
 
 var logIOR5;//[-1, 1]
@@ -87,6 +99,16 @@ function initParameters(){
     alphaB = 1;
     reflection_degree_val = 1;
 
+    //Initialize Camera;
+    camera_dis = 16;
+
+    camera_x = 0.5;
+    camera_y = 0.5;
+    camera_z = 0.5;
+
+    view_x = 0.3;
+    view_y = 0.4;
+    view_z = 0.5;
 
     //refraction parameters
     logIOR = 0.25;//[-1, 1]
@@ -350,6 +372,15 @@ window.onload = function init()
 
     reflection_degree_loc = gl.getUniformLocation( program, "reflection_degree");
 
+    camera_dis_loc = gl.getUniformLocation( program, "cameraDistance");
+    camera_x_loc = gl.getUniformLocation( program, "cameraX");
+    camera_y_loc = gl.getUniformLocation( program, "cameraY");
+    camera_z_loc = gl.getUniformLocation( program, "cameraZ");
+    view_x_loc = gl.getUniformLocation( program, "viewX");
+    view_y_loc = gl.getUniformLocation( program, "viewY");
+    view_z_loc = gl.getUniformLocation( program, "viewZ");
+
+
 
     fresnelIntensityLoc = gl.getUniformLocation ( program, "fresnelIntensity");
     fresnelBLoc = gl.getUniformLocation( program, "fresnelB");
@@ -461,6 +492,15 @@ function render() {
     gl.uniform1f(FGscaleYLoc, FGscaleY);
 
     gl.uniform1f(reflection_degree_loc, reflection_degree_val);
+
+    //camera
+    gl.uniform1f(camera_dis_loc, camera_dis);
+    gl.uniform1f(camera_x_loc, camera_x);
+    gl.uniform1f(camera_y_loc, camera_y);
+    gl.uniform1f(camera_z_loc, camera_z);
+    gl.uniform1f(view_x_loc, view_x);
+    gl.uniform1f(view_y_loc, view_y);
+    gl.uniform1f(view_z_loc, view_z);
 
 
     gl.uniform1f(fresnelIntensityLoc, fresnelIntensity);

@@ -98,6 +98,46 @@ $(document).ready(function () {
     bindSimpleSliderVal(time_slider, time_val, "date_value");
 
 
+    /** Camera Position **/
+    var camerax_slider = $("#camerax_slider");
+    var camerax = $("#camerax");
+    camerax_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", camera_x).attr("data-slider-tooltip","hide").slider({});
+    bindSliderValParam (camerax_slider, camerax, "camera_x");
+
+    var cameray_slider = $("#cameray_slider");
+    var cameray = $("#cameray");
+    cameray_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", camera_y).attr("data-slider-tooltip","hide").slider({});
+    bindSliderValParam (cameray_slider, cameray, "camera_y");
+
+    var cameraz_slider = $("#cameraz_slider");
+    var cameraz = $("#cameraz");
+    cameraz_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", camera_z).attr("data-slider-tooltip","hide").slider({});
+    bindSliderValParam (cameraz_slider, cameraz, "camera_x");
+
+    /** Camera View **/
+
+    var viewx_slider = $("#viewx_slider");
+    var viewx = $("#viewx");
+    viewx_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_x).attr("data-slider-tooltip","hide").slider({});
+    bindSliderValParam (viewx_slider, viewx, "view_x");
+
+    var viewy_slider = $("#viewy_slider");
+    var viewy = $("#viewy");
+    viewy_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_y).attr("data-slider-tooltip","hide").slider({});
+    bindSliderValParam (viewy_slider, viewy, "view_y");
+
+    var viewz_slider = $("#viewz_slider");
+    var viewz = $("#viewz");
+    viewz_slider.attr("data-slider-min", 0.0).attr("data-slider-max", 1.0).attr("data-slider-step", 0.01).attr("data-slider-value", view_z).attr("data-slider-tooltip","hide").slider({});
+    bindSliderValParam (viewz_slider, viewz, "view_z");
+
+    /** Camera Zoom **/
+
+    var cameradis_slider = $("#cameraDis_slider");
+    var cameradis = $("#cameraDis");
+    cameradis_slider.attr("data-slider-min", 4).attr("data-slider-max", 32).attr("data-slider-step", 0.5).attr("data-slider-value", camera_dis).attr("data-slider-tooltip","hide").slider({});
+    bindSliderValParam (cameradis_slider, cameradis, "camera_dis");
+
     /**Fresnel**/
 
     var fresnel_intensity_slider = $("#fresnel_intensity_slider");

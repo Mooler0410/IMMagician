@@ -113,6 +113,14 @@
         uniform float FGscaleY;
 
         uniform float dayTime;
+        uniform cameraDistance;
+        uniform cameraX;
+        uniform cameraY;
+        uniform cameraZ;
+        uniform viewX;
+        uniform viewY;
+        uniform viewZ;
+
         uniform float fresnelIntensity;
         uniform float fresnelB;
         uniform float fresnelC;
@@ -121,7 +129,7 @@
 
         vec4 normal()
         {
-
+            //Generate real normal direction from a rgb map.
             vec4 normalMap = texture2D(uSamplerNormal, vec2(f_texcoord.s, f_texcoord.t) );
             vec3 normalDisplace = normalMap.rgb;
             normalDisplace = 2.0*normalDisplace - 1.0;
@@ -129,11 +137,94 @@
             return vec4(normalize(fNormal + normalDisplace), normalMap.a);
         }
 
-        vec4 diffuse(vec3 n)
+
+
+        float plane_intersect_solver(vec3 pi,vec3 ni, vec3 ep, vec3 npe){
+            //solve (x, y, z), ((x, y, z) - pi ) * ni = 0, (x, y, z) = eye_source + k * npe. 
+            //xi = k * npe.x + ep.x
+            //yi = k * npe.y + ep.y
+            //zi = k * npe.z + ep.z
+            //(k * npe.x + ep.x) * ni.x + (k * npe.y + ep.y) * ni.y + (k * npe.z + ep.z) * ni.z = 
+
+            float k = (- ( ep.x * ni.x + ep.y * ni.y + ep.z * ni.z)) / (npe.x * ni.x + npe.y * ni.y + npe.z * ni.z);
+            return k;  // ep + k * npe
+        }
+        vec3 plane_normal_solver(vec3 ni){
+            return normalize(ni); //plain solution
+        }
+
+
+        vec3 sphere_intersect_solver(vec3 pi, float radius, vec3 ep, vec3 npe, ){
+            // ((ep + k * npe) - (pi - ep))^2 = radius^2
+            float b = dot(npe, (pi -pe));
+            float c = dot((pe - pi), (pe - pi)) - radius * radius;
+            float delta = b*b - c;
+            if delta < 0{
+                return 4096.0;
+            }
+            else{
+                float t = b - sqrt(delta); //b, 必须已经大于0了。
+                return t;
+            }
+        }
+        vec3 sphere_normal_solver(vec3 pi, float radius, vec3 ep, vec3 npe, ){
+            // ((ep + k * npe) - (pi - ep))^2 = radius^2
+            float b = dot(npe, (pi -ep));
+            float c = dot((ep - pi), (ep - pi)) - radius * radius;
+            float delta = b*b - c;
+
+            float t = b - sqrt(delta); //b, 必须已经大于0了。
+
+            vec3 intersect_norm = (ep + k * npe - (pi - le));
+            return normalize(intersect_norm);
+        }
+
+
+        vec3 Cylinder_intersect_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ep, vec3 npe, vec3 v2, vec3 vup){
+            //a02=1,a12=1, a22=0, a21=0, a00=−1,
+
+            float a00 = -1; //for all cyliner.
+            vec3 n0 = normalize(cross(v2, vup));
+            vec3 n1 = normalize(cross(v2, n0));
+            
+            float A = a02*(dot(n0,npe)/s0)*(dot(n0,npe)/s0) + a12*(dot(n1,npe)/s1) * (dot(n1,npe)/s1);
+            float B = a02*2*(dot(n0,npe)/s0)*(dot(n0, ep-pc)/s0) + a12*2*(dot(n1,npe)/s1)*(dot(n1, ep-pc)/s1);
+            float C = a02*(dot(n0, ep-pc)/s0)*(dot(n0, ep-pc)/s0) + a12*2*(dot(n1, ep-pc)/s1)*(dot(n1, ep-pc)/s1);
+
+            float delta = B*B - 4*A*C;
+            if delta < 0{
+                return 4096.0; //Huge distance;
+            }
+            else{
+                float t = (- B - sqrt(delta)) / (2*A);
+                if t > 0{
+                    return t;
+                }
+                else{
+                    return 4096.0;
+                }
+            }
+        }
+
+        vec3 Cylinder_normal_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ph, vec3 npe, vec3 v2, vec3 vup){
+            //a02=1,a12=1, a22=0, a21=0, a00=−1,
+
+            float a00 = -1; //for all cyliner.
+            vec3 n0 = normalize(cross(v2, vup));
+            vec3 n1 = normalize(cross(v2, n0));
+
+
+            float w0 = 2 * a02 * (dot(n0, ph-pc)/s0/s0;
+            float w1 = 2 * a12 * (dot(n1, ph-pc)/s1/s1;
+
+            vec3 norm_h = n0 * w0 + n1 * w1;
+
+            return normalize(norm_h);
+        }
+
+
+        vec4 diffuse(vec3 n, vec3 currentP)
         {
-
-            vec3 currentP = vec3(f_texcoord.s - 0.5, f_texcoord.t-0.5, 0.0);
-
 
             vec4 color = vec4(0,0,0,1);
             float lightWeight = 0.0;
@@ -160,15 +251,6 @@
                 }
             }
 
-            // time of day calculation
-			color *= 0.5;
-			vec3 vLight = vec3(0.0, 0.0, 1.0);
-            float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
-            float t = (cosTheta - styleDark) / (styleBright - styleDark);
-            if (t>1.0) t=1.0; if (t<0.0) t=0.0;
-            vec3 time_color = dayTime * vec3(-0.9, -0.5, -0.5) + vec3(1.0, 0.75, 0.15);
-			color += (1.0 - t) * vec4(time_color, 1.0);
-
             vec4 T = color;//lightWeight;
 
             vec4 c0 = texture2D(uSamplerColor0, vec2(f_texcoord.s, f_texcoord.t) );//dark
@@ -185,8 +267,6 @@
                 return colorFinal;
             }
 
-
-
         }
 
         vec3 alphaControl()
@@ -195,24 +275,10 @@
             return alphaMap.rgb;
         }
 
-        //Mirror reflection
-        // vec3 mirrorReflection(vec3 n)
-        // {
-        //   float reflectIntensity = 1.0;
-        //   float min = 0.000, max = 1.000;
-        //   float randomNum = Math.random() * (max - min) + min;
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        // }
 
 
-
-        vec3 spec(vec3 n)
+        // 重点修改对象。
+        vec3 spec(vec3 n, vec3 viewVector, vec3 currentP,)
         {
             vec3 currentP = vec3(f_texcoord.s - 0.5, f_texcoord.t-0.5, 0.0);
             vec3 finalSpec = vec3(0.0, 0.0, 0.0);
@@ -221,16 +287,15 @@
             {
                 if (float(i)< float(lightN))
                 {
-                    vec3 vLight = normalize( pLight[i] - currentP);
-                    if (showSpec[i] )
-                    {
-                    vec3 specColor = lightColor[i];
-                    vec3 viewVector = vec3(0.0, 0.0, 1.0);
-                    vec3 RVector = - vLight + 2.0 * dot(n, vLight) * n ;
-                    float temp = dot(RVector, viewVector);
-                    if ( temp < 0.0 ) temp = 0.0;
-                    float spec = pow(temp, 200.0);
-                    finalSpec += specColor * spec;
+                    vec3 vLight = normalize( pLight[i] - currentP); //哦，plight，nmd，是点光源。
+                    if (showSpec[i] ){
+                        vec3 specColor = lightColor[i];
+                        //vec3 viewVector = vec3(0.0, 0.0, 1.0); // eyesight from z axis. 
+                        vec3 RVector = - vLight + 2.0 * dot(n, vLight) * n ;
+                        float temp = dot(RVector, viewVector);
+                        if ( temp < 0.0 ) temp = 0.0;
+                        float spec = pow(temp, 200.0); // 镜面反射的强度。specular reflect.
+                        finalSpec += specColor * spec; //各种光的混合光。
                     }
                 }else{
                     break;
@@ -248,34 +313,30 @@
             vec3 reflect = - 1.0 * vec3(0.0, 0.0, 1.0) + 2.0 * dot(n, vec3(0.0, 0.0, 1.0)) * n;
             vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5) ;//+ vLight0.xy ;
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
-                reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
-                reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-                vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
-                reflCoord = reflCoord + reflection_degree * noise;
-                if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
+            reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
+            reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
+            
+            vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+            reflCoord = reflCoord + reflection_degree * noise;
+            
+            
+            if (reflCoord.x > 1.0 || reflCoord.x < 0.0){
+                reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
+                if ( floor(reflCoord.x) / 2.0 == 0.0)
                 {
-                    reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
-                    if ( floor(reflCoord.x) / 2.0 == 0.0)
-                    {
-                        reflCoord.x = 1.0 - reflCoord.x;
-                    }
+                    reflCoord.x = 1.0 - reflCoord.x;
                 }
-                if (reflCoord.y > 1.0 || reflCoord.y < 0.0)
+            }
+            if (reflCoord.y > 1.0 || reflCoord.y < 0.0){
+                reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
+                if ( floor(reflCoord.y) / 2.0 == 0.0)
                 {
-                    reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
-                    if ( floor(reflCoord.y) / 2.0 == 0.0)
-                    {
-                        reflCoord.y = 1.0 - reflCoord.y;
-                    }
+                    reflCoord.y = 1.0 - reflCoord.y;
                 }
-            vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
+            }
+            vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ; //texture2D获取到了 第二个坐标参数对应的纹理的颜色。
 
-            vec3 time_color = dayTime * vec3(0.3, -0.5, -0.15) + vec3(1.0, 0.75, 0.15);
-			      reflColor += vec4(time_color, 1.0);
-
-
-            if (checkFresnel)
-            {
+            if (checkFresnel){
                 reflColor = vec4(1.0,1.0,1.0,1.0);
             }
             return reflColor.rgb * reflectIntensity;
@@ -284,91 +345,39 @@
 
 
 
-
-        // vec3 reflect1(vec3 n)
-        // {
-
-        //     float reflectIntensity = 1.0;
-
-
-        //     float s = logIOR;
-        //     vec3 l = vec3(0,0,-1);//eye ray
-        //     vec3 temp =  cross (-n, l);
-        //     vec3 Vsurface = cross (temp, -n) ;
-        //     vec3 reflect;
-        //     vec3 origReflect = - 1.0 * vec3(0.0, 0.0, 1.0) + 2.0 * dot(n, vec3(0.0, 0.0, 1.0)) * n;
-
-        //     if ( s >= 0.0 ) reflect = origReflect * (1.0 - (-s)) + (n) * (-s);
-        //     if ( s < 0.0 ) reflect = origReflect * (1.0 - (s) ) + Vsurface * ( s);
-
-
-
-        //     vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy[0].x * 0.5, mouseXYcopy[0].y * 0.5) ;//+ vLight0.xy ;
-        //     vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
-        //         reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
-        //         reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-        //         if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
-        //         {
-        //             reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
-        //             if ( floor(reflCoord.x) / 2.0 == 0.0)
-        //             {
-        //                 reflCoord.x = 1.0 - reflCoord.x;
-        //             }
-        //         }
-        //         if (reflCoord.y > 1.0 || reflCoord.y < 0.0)
-        //         {
-        //             reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
-        //             if ( floor(reflCoord.y) / 2.0 == 0.0)
-        //             {
-        //                 reflCoord.y = 1.0 - reflCoord.y;
-        //             }
-        //         }
-        //     vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
-
-        //     if (checkFresnel )
-        //     {
-        //         reflColor = vec4(1.0,1.0,1.0,1.0);
-        //     }
-        //     return reflColor.rgb * reflectIntensity;
-        // }
-
-
         // Reflected texture is treated as if it is on a hemisphere 1 unit
-            // away from the surface.
+        // away from the surface.
         vec3 reflect2(vec3 n)
         {
 
             float reflectIntensity = 1.0;
             vec2 reflCoord = f_texcoord + n.xy/n.z * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5);
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
-                reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
-                reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-                vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
-                reflCoord = reflCoord + reflection_degree * noise;
-                if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
+            reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
+            reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
+            
+            vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+            reflCoord = reflCoord + reflection_degree * noise;
+            
+            if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
+            {
+                reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
+                if ( floor(reflCoord.x) / 2.0 == 0.0)
                 {
-                    reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
-                    if ( floor(reflCoord.x) / 2.0 == 0.0)
-                    {
-                        reflCoord.x = 1.0 - reflCoord.x;
-                    }
+                    reflCoord.x = 1.0 - reflCoord.x;
                 }
-                if (reflCoord.y > 1.0 || reflCoord.y < 0.0)
+            }
+            if (reflCoord.y > 1.0 || reflCoord.y < 0.0)
+            {
+                reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
+                if ( floor(reflCoord.y) / 2.0 == 0.0)
                 {
-                    reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
-                    if ( floor(reflCoord.y) / 2.0 == 0.0)
-                    {
-                        reflCoord.y = 1.0 - reflCoord.y;
-                    }
+                    reflCoord.y = 1.0 - reflCoord.y;
                 }
+            }
 
             vec4 reflColor = texture2D(uSamplerForeground, reflCoord);
-
-            vec3 time_color = dayTime * vec3(0.3, -0.5, -0.15) + vec3(1.0, 0.75, 0.15);
-		        reflColor += vec4(time_color, 1.0);
-
-            if (checkFresnel)
-            {
+            if (checkFresnel){
                 reflColor = vec4(1.0,1.0,1.0,1.0);
             }
             return reflColor.rgb * reflectIntensity;
@@ -455,124 +464,93 @@
                 fresnel = fresnel * (1.0 + fresnelIntensity);
                 return refl * fresnel + refr * ( 1.0 - fresnel );
             }
-
-
-            //vec3 reflTemp = refl * reflectIntensity ;
-            //vec3 refrTemp = refr * (1.0 - reflectIntensity);
-            //return reflTemp * (1.0 - cos) + refrTemp * cos;
-
-
         }
 
         void main()
         {
+            vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
 
-            vec4 nn = normal();
-            vec3 n = nn.xyz;
+            vec3 pe = cameraDistance * vec3(cameraX, cameraY, cameraZ);// pe is the original position of the eye camera.
 
-            //vec3 specular = spec(n);
-            vec4 diffuse = diffuse(n);//+ vec4(specular, 1.0);
-            vec3 specular = spec(n);
-            vec3 alphaControl = alphaControl();
-            vec4 background = texture2D(uSamplerBackground, vec2(f_texcoord.s, f_texcoord.t) );
-            vec3 backgroundColor = background.rgb;
-            vec3 refl = vec3 (0,0,0);
-            if (reflMap == 1)
-            {
-                refl = reflect1(n) + specular; //plane
-                if (checkFresnel){refl = reflect1(n);}
-            }else if (reflMap == 2)
-            {
-                refl = reflect2(n) + specular; //hemisphere
-                if (checkFresnel){refl = reflect2(n);}
+            vec3 n2 = normalize(vec3(viewX, viewY, viewZ); //start from zero, camera direction;  
+            vec3 V_up = vec3(0.0, 0.0, 1.0);
+            vec3 n0 = normalize(cross(n2, V_up));
+            vec3 n1 = normalize(cross(n0, n2));
+
+            float screen_distance = 3.0;
+
+            float s0 = 1.0;
+            float s1 = 1.0;
+            vec3 pc = pe + screen_distance * n2;
+            vec3 p00 = pc - (s0 * n0 + s1 * n1) / 2.0;
+
+            vec3 pp = p00 + f_texcoord.s * s0 * n0 + f_texcoord.t * s1 * n1;
+            vec3 npe = normalize(pp - pe); //at the screen position .
+
+
+
+            vec3 cur_normal; //final normal direction
+            vec3 cur_posi; //final position and final distance
+            
+            //plane
+            vec3 plane_ni = vec3(0., 0., 1.,); // plane norm direction.
+            vec3 plane_color = vec3(0.4, 0.2, 0.3);
+            vec3 plane_position = vec3(1.0, 0., 0.); //plane position
+
+            float plane_d = plane_intersect_solver(plane_position, plane_ni, pe, npe);
+            vec3 plane_norm = plane_ni;
+
+            //sphere
+            vec3 sphere_position = vec3(1.0, 0., 0.); // plane norm direction.
+            vec3 sphere_color = vec3(0.2, 0.4, 0.3);
+            float sphere_radius = 2.0;
+
+            float sphere_d = sphere_intersect_solver(sphere_position, sphere_radius, pe, npe);
+            vec3 sphere_norm = sphere_normal_solver(sphere_position, sphere_radius, pe, npe);
+
+            //Cyliner.
+            vec3 v2 = vec3(4., 4., 7.); 
+            vec3 vup = vec3(1., 0., 0.0);
+            vec3 cylinder_color = vec3(0.2, 0.3, 0.4);
+            vec3 cylinder_position = vec3(2, 1, 1.9);
+            
+            float s0 = 9.;
+            float s1 = 5.;
+            float a02 = 1. ;
+            float a12 = 1. ;
+
+            float cylinder_d = Cylinder_intersect_solver(s0, s1, a02, a12, cylinder_position, pe, npe, v2, vup);
+            float cylinder_norm = Cylinder_normal_solver(s0, s1, a02, a12, cylinder_position, pe, npe, v2, vup);
+
+            //choice.
+            
+            float shortest_distance = 4096.0;
+            vec3 obj_color;
+            if shortest_distance > plane_d{
+                shortest_distance = plane_d;
+                obj_color = plane_color;
+                cur_normal = plane_norm;
+                cur_posi = pe + plane_d * npe;
             }
-            vec3 refr;
-            if(realVersion){
-                refr = refract2(n);
-            }
-            else{
-                refr = refract(n);
-            }
-            vec3 fresnel = fresnelBlend(n, refl, refr);
-
-            vec4 finalColor = diffuse;
-
-
-
-            //finalColor += vec4(specular, 1.0);
-
-
-            vec4 finalColor_showLightsOnly = finalColor;
-
-            float alpha = diffuse.a;
-	          float alpha1 = diffuse.a;
-	          float alpha2 = diffuse.a;
-
-            float a,b,c,d;
-
-            a = alphaControl.r;
-            alpha = alpha * (1.0 - a) + alpha * alphaR * a;
-            b = alphaControl.g;
-            alpha1 = alpha1 * (1.0 - b) + alpha1 * alphaG * b;
-            c = alphaControl.b;
-            alpha2 = alpha2 * (1.0 - c) + alpha2 * alphaB * c;
-
-          // float reflection_degree;
-          // r = alphaControl.mirror;
-          // alpha = alpha * reflection_degree;
-
-
-
-            finalColor = vec4 (refl * (1.0 - alpha) + finalColor.rgb * alpha, 1.0) ;
-	        finalColor = vec4 (refr * (1.0 - alpha1) + finalColor.rgb * alpha1, 1.0) ;
-	        finalColor = vec4 (fresnel * (1.0 - alpha2) + finalColor.rgb * alpha2, 1.0) ;
-
-
-
-
-            d = nn.a  ;
-            vec3 compBackground = backgroundColor * (1.0 - d) + finalColor.rgb * d;
-
-            if (checkFresnel )
-            {
-                finalColor = vec4 (fresnel, 1.0);
-            }
-
-            if (lightsOnly )
-            {
-                finalColor = vec4(finalColor_showLightsOnly.rgb, 1.0);
-                compBackground = vec3(0,0,0) * (1.0 - d) + finalColor.rgb * d;
+            
+            if shortest_distance > sphere_d{
+                shortest_distance = sphere_d;
+                obj_color = sphere_color;
+                cur_normal = sphere_norm;
+                cur_posi = pe + sphere_d * npe;
             }
 
+            if shortest_distance > cylinder_d{
+                shortest_distance = cylinder_d;
+                obj_color = cylinder_color;
+                cur_normal = cylinder_norm;
+                cur_posi = pe + cylinder_d * npe;
+            }
 
-            gl_FragColor = vec4(compBackground.rgb, 1.0);
+            finalColor = diffuse(cur_normal, cur_posi) + vec4(spec(cur_normal, npe, cur_posi), 1.);
 
-
-
-
-            //gl_FragColor = vec4(diffuse.a,diffuse.a,diffuse.a, 1.0);
-
-            //gl_FragColor = vec4(userMouse.x+0.5, -userMouse.y+0.5, 0.0, 1.0);
-
-            //gl_FragColor = vec4(f_texcoord.x, 1.0-f_texcoord.y, 0.0, 1.0);
-
-/*
-            vec2 v0 = f_texcoord - mouseXY0;
-            vec3 NewNormal;
-             NewNormal = vec3(v0.xy, sqrt(1.0 - length(v0)/(0.1*0.1)));
-
-            vec3 Newrefr = refract(NewNormal);
-            gl_FragColor = vec4(refr,1.0);
-*/
-
-            /*
-            vec3 diffuse = diffuse(n).rgb;
-            vec3 specular = spec(n);
-            vec3 refl = reflect(n);
-            vec3 refr = refract(n);
-            vec3 fresnel = fresnelBlend(n, refl, refr);
-            gl_FragColor = vec4(diffuse + specular + 0.5 * fresnel, 1.0);
-            */
+            finalColor.rgb = finalColor.rgb * (1. - 0.5) + 0.5 * intrinsic_color;
+            gl_FragColor = finalColor;
         }
     </script>
 
@@ -591,7 +569,7 @@
     <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
 	<ul class="fancyNav">
 	<li><a href=../index.html>Home</a></li>
-	<li><a class="active" href=../normalmap/index.html>Normal Map</a></li>
+	<li><a class="active" href=../Proj4/index.html>Ray Casting</a></li>
 	<li><a href=../shadow/index.html>Shadow/Height Map</a></li>
 	<li><a href=index.html>Videos</a></li>
 	<li><a href=index.html>Research</a></li>
@@ -782,39 +760,83 @@
                             </div>
             	        </div>
                     </li>
-                    <!--Shadow-->
-                    <!-- <li class="panel">
-            	        <a class = "myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#shadow">Shadow<span class="sr-only">(current)</span></a>
-                        <div id = "shadow" class= "inCollapse collapse">
-               	            <div class="checkbox">
-                                <label>
-                                    <span class = "h6 inlineBlock"> Show Shadow </span>
-                                    <div class = "checkbox_container pull-right">
-                           	            <input type="checkbox">
-                                        <div class = "pseudoCheckbox"></div>
+
+                    <!--Camera Control-->
+                    <li class="panel">
+                        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#cameraControl">
+                            Camera
+                        </a>
+                        <div id = "cameraControl" class= "inCollapse collapse">
+
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> CameraX </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="camerax">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="camerax_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> CameraY </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="cameray">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="cameray_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> CameraZ </span>
+                                <div class="pull-right">
+                                     <input type="text" class="form-control mytextbox text-center" id="cameraz">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="cameraz_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> ViewX </span>
+                                <div class="pull-right">
+                                     <input type="text" class="form-control mytextbox text-center" id="viewx">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="viewx_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> ViewY </span>
+                                <div class="pull-right">
+                                <input type="text" class="form-control mytextbox text-center" id="viewy">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="viewy_slider" data-slider-id='customSlider' type="text"/>
                                     </div>
-                                </label>
                             </div>
                             <div class="slider_container">
-                                <span class="h6 inlineBlock"> Sample size </span>
+                                <span class="h6 inlineBlock"> ViewZ </span>
                                 <div class="pull-right">
-                       	            <input type="text" class="form-control mytextbox text-center" id="sha_sampleSize_val"    value="1">
+                                <input type="text" class="form-control mytextbox text-center" id="viewz">
                                 </div>
                                 <div class="slider_box">
-                       	            <input id="sha_sampleSize_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
+                                    <input id="viewz_slider" data-slider-id='customSlider' type="text"/>
+                                    </div>
                             </div>
+
                             <div class="slider_container">
-                                <span class="h6 inlineBlock"> Number of Sample </span>
+                                <span class="h6 inlineBlock"> ZoomIn/Out(Field) </span>
                                 <div class="pull-right">
-                       	            <input type="text" class="form-control mytextbox text-center" id="sha_numberOfSample_val" value="1">
+                                <input type="text" class="form-control mytextbox text-center" id="cameraDis">
                                 </div>
                                 <div class="slider_box">
-                       	            <input id="sha_numberOfSample_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
+                                    <input id="cameraDis_slider" data-slider-id='customSlider' type="text"/>
+                                    </div>
                             </div>
-            	        </div>
-                    </li> -->
+
+                        </div>
+                    </li>
+
                     <!--Additional Alpha Control-->
                     <li class="panel">
                         <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#alphaControl">
