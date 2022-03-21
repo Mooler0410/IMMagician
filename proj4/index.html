@@ -510,13 +510,21 @@
             vec3 cur_normal; //final normal direction
             vec3 cur_posi; //final position and final distance
             
-            //plane
+            //plane1
             vec3 plane_ni = vec3(1., 0., 0.); // plane norm direction.
             vec3 plane_color = vec3(0.5, 0.5, 0.);
             vec3 plane_position = vec3(1., 1., 0.); //plane position
 
             float plane_d = plane_intersect_solver(plane_position, plane_ni, pe, npe);
             vec3 plane_norm = plane_ni;
+
+            //plane2
+            vec3 plane_ni_2 = vec3(0.5, 0.5, 0.); // plane norm direction.
+            vec3 plane_color_2 = vec3(0.5, 0., 0.5); //
+            vec3 plane_position_2 = vec3(1., 1., 0.); //plane position
+
+            float plane_d_2 = plane_intersect_solver(plane_position_2, plane_ni_2, pe, npe);
+            vec3 plane_norm_2 = plane_ni_2;            
 
             //sphere
             vec3 sphere_position = vec3(3.0, 0.0, 1.0); // plane norm direction.
@@ -525,6 +533,14 @@
 
             float sphere_d = sphere_intersect_solver(sphere_position, sphere_radius, pe, npe);
             vec3 sphere_norm = sphere_normal_solver(sphere_position, sphere_radius, pe, npe);
+
+            //sphere2
+            vec3 sphere_position_2 = vec3(10.0, 1.0, 2.0); // plane norm direction.
+            vec3 sphere_color_2 = vec3(0.1, 0.1, 0.8);
+            float sphere_radius_2 = 2.0;
+
+            float sphere_d_2 = sphere_intersect_solver(sphere_position_2, sphere_radius_2, pe, npe);
+            vec3 sphere_norm_2 = sphere_normal_solver(sphere_position_2, sphere_radius_2, pe, npe);
 
             //Cyliner.
             vec3 v2 = vec3(0, 0., 1.); 
@@ -556,6 +572,13 @@
                 cur_normal = plane_norm;
                 cur_posi = pe + plane_d * npe;
             }
+
+            if (shortest_distance > plane_d_2) {
+                shortest_distance = plane_d_2;
+                obj_color = plane_color_2;
+                cur_normal = plane_norm_2;
+                cur_posi = pe + plane_d_2 * npe;
+            }
             
             
             if (shortest_distance > sphere_d) {
@@ -563,6 +586,13 @@
                 obj_color = sphere_color;
                 cur_normal = sphere_norm;
                 cur_posi = pe + sphere_d * npe;
+            }
+
+            if (shortest_distance > sphere_d_2) {
+                shortest_distance = sphere_d_2;
+                obj_color = sphere_color_2;
+                cur_normal = sphere_norm_2;
+                cur_posi = pe + sphere_d_2 * npe;
             }
 
         
