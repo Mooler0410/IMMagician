@@ -71,6 +71,7 @@ var fresnelIntensity;
 var fresnelB; //cos = 0.95
 var fresnelC; //cos = 0.7
 var checkFresnel;
+var checkSoft;
 var realVersion;
 
 function initParameters(){
@@ -127,6 +128,7 @@ function initParameters(){
     fresnelB = 0.3; //cos = 0.95
     fresnelC = 0.6; //cos = 0.7
     checkFresnel = 0;
+    checkSoft=0;
     realVersion = 0;
 
     // Height Light parameters
@@ -166,6 +168,7 @@ var FGshiftXLoc, FGshiftYLoc, FGscaleXLoc, FGscaleXLoc;
 var fresnelIntensityLoc;
 var fresnelBLoc, fresnelCLoc;
 var checkFresnelLoc;
+var checkSoftLoc;
 var realVersionLoc;
 
 
@@ -386,6 +389,7 @@ window.onload = function init()
     fresnelBLoc = gl.getUniformLocation( program, "fresnelB");
     fresnelCLoc = gl.getUniformLocation( program, "fresnelC");
     checkFresnelLoc = gl.getUniformLocation( program, "checkFresnel");
+    checkSoftLoc = gl.getUniformLocation( program, "checkSoft");
     realVersionLoc = gl.getUniformLocation( program, "realVersion");
     render();
 };
@@ -438,6 +442,9 @@ function render() {
 
     var checkFresnelElem = $('#checkFresnelSelect:checked');
     checkFresnel = (checkFresnelElem.val())?1:0;
+
+    var checkSoftElem = $('#checkSoftSelect:checked');
+    checkSoft = (checkSoftElem.val())?1:0;
 
     var realVersionElem = $('#realVersionSelect:checked');
     realVersion = (realVersionElem.val())?1:0;
@@ -507,6 +514,7 @@ function render() {
     gl.uniform1f(fresnelBLoc, fresnelB);
     gl.uniform1f(fresnelCLoc, fresnelC);
     gl.uniform1i(checkFresnelLoc, checkFresnel);
+    gl.uniform1i(checkSoftLoc, checkSoft);
     gl.uniform1f(realVersionLoc,realVersion);
 
 

@@ -12,6 +12,10 @@ $(document).ready(function () {
     var checkFresnelElem = $('#checkFresnelSelect');
     initCheckbox(checkFresnel, checkFresnelElem);
 
+
+    var checkSoftElem = $('#checkSoftSelect');
+    initCheckbox(checkSoft, checkSoftElem);
+
     var realVersionElem = $('#realVersionSelect');
     initCheckbox(realVersion, realVersionElem);
 
