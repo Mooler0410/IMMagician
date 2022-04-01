@@ -471,10 +471,10 @@ function render() {
     realVersion = (realVersionElem.val())?1:0;
 
     var directionalLightElem = $ ('#directionalLightSelect:checked');
-    lightsOnly = (directionalLightElem.val())?1:0;
+    directionalLight = (directionalLightElem.val())?1:0;
 
     var pointLightElem = $ ('#pointLightSelect:checked');
-    lightsOnly = (pointLightElem.val())?1:0;
+    pointLight = (pointLightElem.val())?1:0;
 
 
 

@@ -31,9 +31,11 @@
         attribute vec4 vPosition;
         attribute vec3 vNormal;
         attribute vec2 texcoord;
+        attribute vec4 vColor;
 
         varying vec2 f_texcoord;
         varying vec3 fNormal;
+        varying vec4 fColor;
 
         varying vec3 pLight[max_lights];
         varying float lightN;// = lightNum
@@ -60,6 +62,19 @@
                     float x = mouseXY[i].x * 2.0 ;
                     float y = mouseXY[i].y * 2.0;
                     float z = pointLightDis[i];
+                    //##########################################################
+                    //proj5 directional light:
+                    if(directionalLight[i]){
+
+
+                    }
+
+                    //proj5 point light:
+                    if(pointLight[i]){
+
+
+                    }
+                    //##########################################################
                     pLight[i] = vec3(x, -y, z + 0.05);
                 }else{
                     break;
@@ -68,6 +83,7 @@
             mouseXYcopy = mouseXY[0];
             lightN = lightNum;
             f_texcoord = texcoord;
+            fColor = vColor;
         }
     </script>
 
@@ -745,10 +761,10 @@
 
                     <!--lights, proj5 lights in here-->
                     <li class="panel">
-                    	<a class="myControlTitle" data-toggle= "collapse" data-parent= "#accordion_L" href="#lightControl"  >
+                    	<a class="myControlTitle" data-toggle= "collapse" data-parent= "#accordion_L" href="#lightControlL"  >
                               Light
                         </a>
-                          <div id = "lightControl" class = "inCollapse collapse">
+                          <div id = "lightControlL" class = "inCollapse collapse">
                             <div class = "checkbox">
                               <label>
                               <span class="h6 inlineBlock" >Directional Light</span>
