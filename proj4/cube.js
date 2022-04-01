@@ -31,6 +31,12 @@ showSpec[0] = 1;
 var showVersion = [];
 showVersion[0] = 1;
 
+var showDirectional = [];
+showDirectional[0] = 1;
+
+var showPointLight = [];
+showPointLight = 1;
+
 
 var styleBright,
     styleDark;
@@ -44,7 +50,7 @@ var timeVal;
 //camera
 
 var camera_dis;
-    
+
 var camera_x;
 var camera_y;
 var camera_z;
@@ -73,6 +79,8 @@ var fresnelC; //cos = 0.7
 var checkFresnel;
 var checkSoft;
 var realVersion;
+var directionalLight;
+var pointLight;
 
 function initParameters(){
     lightColor =[1.0, 1.0, 1.0];
@@ -83,6 +91,8 @@ function initParameters(){
     showDiffuse[0] = 1;
     showSpec[0] = 1;
     showVersion[0] = 1;
+    showDirectional[0] = 1;
+    showPointLight[0] = 1;
 
     timeVal = 0;
 
@@ -130,7 +140,8 @@ function initParameters(){
     checkFresnel = 0;
     checkSoft=0;
     realVersion = 0;
-
+    directionalLight=0;
+    pointLight=0;
     // Height Light parameters
     //hLightDistance = 1.0;
     //hLightIntensity = 1.0;
@@ -158,6 +169,9 @@ var showDiffuseLoc;
 var showSpecLoc;
 var showVersionLoc;
 
+var showDirectionalLoc;
+var showPointLightLoc;
+
 var styleBrightLoc, styleDarkLoc;
 var alphaRLoc, alphaGLoc, alphaBLoc;
 var logIORLoc, BGdisLoc;
@@ -170,6 +184,8 @@ var fresnelBLoc, fresnelCLoc;
 var checkFresnelLoc;
 var checkSoftLoc;
 var realVersionLoc;
+var directionalLightLoc;
+var pointLightLoc;
 
 
 /****************** For Basic shader ******************/
@@ -357,6 +373,8 @@ window.onload = function init()
     pointLightDecayLoc = gl.getUniformLocation( program, "pointLightDecay");
 
     showVersionLoc = gl.getUniformLocation( program, "showVersion");
+    showDirectionalLoc = gl.getUniformLocation( program, "showDirectional");
+    showPoinitLightLoc = gl.getUniformLocation( program, "showPointLight");
 
     styleBrightLoc = gl.getUniformLocation( program, "styleBright");
     styleDarkLoc = gl.getUniformLocation( program, "styleDark");
@@ -391,6 +409,9 @@ window.onload = function init()
     checkFresnelLoc = gl.getUniformLocation( program, "checkFresnel");
     checkSoftLoc = gl.getUniformLocation( program, "checkSoft");
     realVersionLoc = gl.getUniformLocation( program, "realVersion");
+    directionalLightLoc = gl.getUniformLocation(program, "directionalLight");
+    pointLightLoc = gl.getUniformLocation(program,"pointLight");
+
     render();
 };
 
@@ -449,6 +470,15 @@ function render() {
     var realVersionElem = $('#realVersionSelect:checked');
     realVersion = (realVersionElem.val())?1:0;
 
+    var directionalLightElem = $ ('#directionalLightSelect:checked');
+    lightsOnly = (directionalLightElem.val())?1:0;
+
+    var pointLightElem = $ ('#pointLightSelect:checked');
+    lightsOnly = (pointLightElem.val())?1:0;
+
+
+
+
 
     for (var i = 0; i < lightNum ; i++)
     {
@@ -463,6 +493,22 @@ function render() {
         var checkboxName_showVersion = '#lightPanel' + i + ' #versionSelect:checked';
         var showVersionElem = $(checkboxName_showVersion);
         showVersion[i] = (showVersionElem.val())?1:0;
+
+        var  checkboxName_showDirectional = '#lightPanel' + i + ' #directionalLightSelect:checked';
+        var showDirectionalElem = $(checkboxName_showDirectional);
+        showDirectional[i] = (showDirectionalElem.val())?1:0;
+
+        var checkboxName_showPointLight = '#lightPanel' + i + ' #pointLightSelect:checked';
+        var showPointLightElem = $(checkboxName_showPointLight);
+        showPointLight[i] = (showPointLightElem.val())?1:0;
+
+
+
+
+
+
+
+
 
     }
 
@@ -481,6 +527,8 @@ function render() {
     gl.uniform1fv(pointLightDecayLoc, pointLightDecay);
 
     gl.uniform1iv(showVersionLoc, showVersion);
+    gl.uniform1iv(showDirectinalnLoc, showDirectinal);
+    gl.uniform1iv(showPointLightLoc, showPointLight);
 
     gl.uniform1f(styleBrightLoc, styleBright);
     gl.uniform1f(styleDarkLoc, styleDark);
@@ -516,7 +564,8 @@ function render() {
     gl.uniform1i(checkFresnelLoc, checkFresnel);
     gl.uniform1i(checkSoftLoc, checkSoft);
     gl.uniform1f(realVersionLoc,realVersion);
-
+    gl.uniform1f(directionalLightLoc,directionalLight);
+    gl.uniform1f(pointLightLoc,pointLight);
 
     gl.drawArrays( gl.TRIANGLES, 0, numVertices );
 

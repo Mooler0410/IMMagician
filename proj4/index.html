@@ -99,6 +99,8 @@
         uniform bool showSpec[max_lights];
 
         uniform bool showVersion[max_lights];
+        uniform bool showDirectional[max_lights];
+        uniform bool showPointLight[max_lights];
 
         uniform float styleBright, styleDark;
         uniform float alphaR, alphaG, alphaB, reflection_degree;
@@ -127,6 +129,8 @@
         uniform bool checkFresnel;
         uniform bool checkSoft;
         uniform bool realVersion;
+        uniform bool directionalLight;
+        uniform bool pointLight;
 
         vec4 normal()
         {
@@ -141,11 +145,11 @@
 
 
         float plane_intersect_solver(vec3 pi,vec3 ni, vec3 ep, vec3 npe){
-            //solve (x, y, z), ((x, y, z) - pi ) * ni = 0, (x, y, z) = eye_source + k * npe. 
+            //solve (x, y, z), ((x, y, z) - pi ) * ni = 0, (x, y, z) = eye_source + k * npe.
             //xi = k * npe.x + ep.x
             //yi = k * npe.y + ep.y
             //zi = k * npe.z + ep.z
-            //(k * npe.x + ep.x) * ni.x + (k * npe.y + ep.y) * ni.y + (k * npe.z + ep.z) * ni.z = 
+            //(k * npe.x + ep.x) * ni.x + (k * npe.y + ep.y) * ni.y + (k * npe.z + ep.z) * ni.z =
 
             if  (dot(ni, (ep - pi)) > 0.){
                 float k = - dot(ni, (ep - pi)) / dot(ni, npe);
@@ -194,7 +198,7 @@
             float a00 = -1.; //for all cyliner.
             vec3 n0 = normalize(cross(v2, vup));
             vec3 n1 = normalize(cross(v2, n0));
-            
+
             float A = a02*(dot(n0,npe)/s0)*(dot(n0,npe)/s0) + a12*(dot(n1,npe)/s1) * (dot(n1,npe)/s1);
             float B = a02*2.0*(dot(n0,npe)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1,npe)/s1)*(dot(n1, ep-pc)/s1);
             float C = a02*(dot(n0, ep-pc)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1, ep-pc)/s1)*(dot(n1, ep-pc)/s1);
@@ -245,7 +249,7 @@
                     float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
                     float t = (cosTheta - styleDark) / (styleBright - styleDark);
                     if (t>1.0) t=1.0; if (t<0.0) t=0.0;
-                    
+
                     if (checkSoft){
                         t = t * t * (3.0 - 2.0 * t);
                     }
@@ -329,11 +333,11 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
             reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
             reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-            
+
             vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
             reflCoord = reflCoord + reflection_degree * noise;
-            
-            
+
+
             if (reflCoord.x > 1.0 || reflCoord.x < 0.0){
                 reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
                 if ( floor(reflCoord.x) / 2.0 == 0.0)
@@ -369,10 +373,10 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
             reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
             reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-            
+
             vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
             reflCoord = reflCoord + reflection_degree * noise;
-            
+
             if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
             {
                 reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
@@ -486,9 +490,9 @@
 
             vec3 pe = cameraDistance * vec3(cameraX, cameraY, cameraZ);// pe is the original position of the eye camera.
 
-            //vec3 n2 = normalize(vec3(viewX, viewY, viewZ)); //start from zero, camera direction;  
+            //vec3 n2 = normalize(vec3(viewX, viewY, viewZ)); //start from zero, camera direction;
             vec3 n2 = normalize(vec3(0.0,0.0,0.0) - pe); //centrilize.
-            
+
             n2 = normalize(n2 + vec3(viewX, viewY, viewZ));
 
             vec3 V_up = vec3(0.0, 0.0, 1.0);
@@ -509,7 +513,7 @@
 
             vec3 cur_normal; //final normal direction
             vec3 cur_posi; //final position and final distance
-            
+
             //plane1
             vec3 plane_ni = vec3(1., 0., 0.); // plane norm direction.
             vec3 plane_color = vec3(0.5, 0.5, 0.);
@@ -524,7 +528,7 @@
             vec3 plane_position_2 = vec3(1., 1., 0.); //plane position
 
             float plane_d_2 = plane_intersect_solver(plane_position_2, plane_ni_2, pe, npe);
-            vec3 plane_norm_2 = plane_ni_2;            
+            vec3 plane_norm_2 = plane_ni_2;
 
             //sphere
             vec3 sphere_position = vec3(3.0, 0.0, 1.0); // plane norm direction.
@@ -543,18 +547,18 @@
             vec3 sphere_norm_2 = sphere_normal_solver(sphere_position_2, sphere_radius_2, pe, npe);
 
             //Cyliner.
-            vec3 v2 = vec3(0, 0., 1.); 
+            vec3 v2 = vec3(0, 0., 1.);
             vec3 vup = vec3(1., 0., 0.0);
             vec3 cylinder_color = vec3(0.5, 0., 0.5);
             vec3 cylinder_position = vec3(1.0, 1.0, 1.5);
-            
+
             float a02 = 1. ;
             float a12 = 1. ;
 
             float cylinder_d = Cylinder_intersect_solver(1.5, 0.5, a02, a12, cylinder_position, pe, npe, v2, vup);
             vec3 cylinder_norm = Cylinder_normal_solver(1.5, 0.5, a02, a12, cylinder_position, pe, npe, v2, vup);
 
-            //Choice            
+            //Choice
             float shortest_distance = 4096.0 ;
 
             vec3 obj_color;
@@ -565,7 +569,7 @@
                 cur_normal = cylinder_norm;
                 cur_posi = pe + cylinder_d * npe;
             }
-            
+
             if (shortest_distance > plane_d) {
                 shortest_distance = plane_d;
                 obj_color = plane_color;
@@ -579,8 +583,8 @@
                 cur_normal = plane_norm_2;
                 cur_posi = pe + plane_d_2 * npe;
             }
-            
-            
+
+
             if (shortest_distance > sphere_d) {
                 shortest_distance = sphere_d;
                 obj_color = sphere_color;
@@ -595,8 +599,8 @@
                 cur_posi = pe + sphere_d_2 * npe;
             }
 
-        
-            
+
+
 
             finalColor = diffuse(cur_normal, cur_posi) + vec4(spec(cur_normal, npe, cur_posi), 1.);
 
@@ -737,6 +741,36 @@
                             </div>
                     	</div>
                     </li>
+
+
+                    <!--lights, proj5 lights in here-->
+                    <li class="panel">
+                    	<a class="myControlTitle" data-toggle= "collapse" data-parent= "#accordion_L" href="#lightControl"  >
+                              Light
+                        </a>
+                          <div id = "lightControl" class = "inCollapse collapse">
+                            <div class = "checkbox">
+                              <label>
+                              <span class="h6 inlineBlock" >Directional Light</span>
+                                  <div class = "checkbox_container pull-right">
+                                    <input type="checkbox" id ="directionalLightSelect" >
+                                      <div class = "pseudoCheckbox"></div>
+                                  </div>
+                              </label>
+                          </div>
+                          <div class = "checkbox">
+                              <label>
+                                  <span class="h6 inlineBlock" >Point Light</span>
+                                  <div class = "checkbox_container pull-right">
+                                      <input type="checkbox" id = "pointLightSelect">
+                                      <div class = "pseudoCheckbox"></div>
+                                  </div>
+                              </label>
+                          </div>
+                        </div>
+                    </li>
+
+
                 </ul>
             </div>
             <!--Left Column end-->

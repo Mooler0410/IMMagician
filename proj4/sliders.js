@@ -19,6 +19,14 @@ $(document).ready(function () {
     var realVersionElem = $('#realVersionSelect');
     initCheckbox(realVersion, realVersionElem);
 
+    var directionalLightElem = $('#directionalLightSelect');
+    initCheckbox(directionalLight, directionalLightElem);
+
+    var pointLightElem = $('#pointLightSelect');
+    initCheckbox(pointLight, pointLightElem);
+
+
+
     if (lightsPosition ==1)
     {
         $('#lightPosition_container').css("display", "block");
@@ -275,6 +283,16 @@ function setupLightFunctions(i)
     var checkboxName_showVersion = '#lightPanel' + i + ' #versionSelect';
     var showVersionElem = $(checkboxName_showVersion);
     initCheckbox(showVersion[i], showVersionElem);
+
+    var checkboxName_showDirectional = '#lightPanel' + i + ' #directionalLightSelect';
+    var showDirectionalElem = $(checkboxName_showDirectional);
+    initCheckbox(showDirectional[i], showDirectionalElem);
+
+    var checkboxName_showPointLight = '#lightPanel' + i + ' #pointLightSelect';
+    var showPointLightElem = $(checkboxName_showPointLight);
+    initCheckbox(showPointLight[i], showPointLightElem);
+
+
 
 
     //////slider events
