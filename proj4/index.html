@@ -59,23 +59,17 @@
             {
                 if (float(i)< float(lightNum))
                 {
-                    float x = mouseXY[i].x * 2.0 ;
-                    float y = mouseXY[i].y * 2.0;
-                    float z = pointLightDis[i];
+                    float x = 10.0 - (mouseXY[i].x) * 5.0;
+                    float y = 10.0 - (mouseXY[i].y) * 5.0;
+                    float z = pointLightDis[i] * 20.0;
                     //##########################################################
                     //proj5 directional light:
-                    if(directionalLight[i]){
-
-
-                    }
+                    //if(directionalLight[i]){}
 
                     //proj5 point light:
-                    if(pointLight[i]){
-
-
-                    }
+                    //if(pointLight[i]){}
                     //##########################################################
-                    pLight[i] = vec3(x, -y, z + 0.05);
+                    pLight[i] = vec3(x, z, y);
                 }else{
                     break;
                 }
@@ -160,50 +154,47 @@
 
 
 
-        float plane_intersect_solver(vec3 pi,vec3 ni, vec3 ep, vec3 npe){
-            //solve (x, y, z), ((x, y, z) - pi ) * ni = 0, (x, y, z) = eye_source + k * npe.
-            //xi = k * npe.x + ep.x
-            //yi = k * npe.y + ep.y
-            //zi = k * npe.z + ep.z
-            //(k * npe.x + ep.x) * ni.x + (k * npe.y + ep.y) * ni.y + (k * npe.z + ep.z) * ni.z =
+        float plane_intersect_solver(vec3 plane_point,vec3 ni, vec3 pe, vec3 npe){
+            // ((x, y, z) - plane_point) * ni = 0
+            // (x, y, z) = pe + k * npe
 
-            if  (dot(ni, (ep - pi)) > 0.){
-                float k = - dot(ni, (ep - pi)) / dot(ni, npe);
-                //float k = (- ( ep.x * ni.x + ep.y * ni.y + ep.z * ni.z)) / (npe.x * ni.x + npe.y * ni.y + npe.z * ni.z);
-                return k;  // ep + k * npe
+            if  (dot(ni, npe) < 0.){
+                float k = - dot(ni, (pe - plane_point)) / dot(ni, npe);
+                return k;
             }
             else{
-                return 4096.0;
+                return 10000.0;
             }
         }
+
         vec3 plane_normal_solver(vec3 ni){
             return normalize(ni); //plain solution
         }
 
 
-        float sphere_intersect_solver(vec3 pi, float radius, vec3 ep, vec3 npe){
-            // ((ep + k * npe) - (pi - ep))^2 = radius^2
+        float sphere_intersect_solver(vec3 center, float radius, vec3 pe, vec3 npe){
+            // ((pe + k * npe) - (center - pe))^2 = radius^2
 
-            float b = dot(npe, (pi - ep));
-            float c = dot((ep - pi), (ep - pi)) - radius * radius;
+            float b = dot(npe, (center - pe));
+            float c = dot((pe - center), (pe - center)) - radius * radius;
             float delta = b*b - c;
             if (delta < 0.) {
-                return 4096.0;
+                return 10000.0;
             }
             else{
-                float t = b - sqrt(delta); //b, 必须已经大于0了。
+                float t = b - sqrt(delta);
                 return t;
             }
         }
-        vec3 sphere_normal_solver(vec3 pi, float radius, vec3 ep, vec3 npe){
-            // ((ep + k * npe) - (pi - ep))^2 = radius^2
-            float b = dot(npe, (pi -ep));
-            float c = dot((ep - pi), (ep - pi)) - radius * radius;
+        vec3 sphere_normal_solver(vec3 center, float radius, vec3 pe, vec3 npe){
+            // ((pe + k * npe) - (center - pe))^2 = radius^2
+            float b = dot(npe, (center - pe));
+            float c = dot((pe - center), (pe - center)) - radius * radius;
             float delta = b*b - c;
 
-            float t = b - sqrt(delta); //b, 必须已经大于0了。
+            float t = b - sqrt(delta);
 
-            vec3 intersect_norm = (ep + t * npe - (pi - ep)); //106
+            vec3 intersect_norm = (pe + t * npe - (center - pe));
             return normalize(intersect_norm);
         }
 
@@ -221,7 +212,7 @@
 
             float delta = B*B - 4.0*A*C;
             if (delta < 0.) {
-                return 4096.0; //Huge distance;
+                return 10000.0; //Huge distance;
             }
             else{
                 float t = (- B - sqrt(delta)) / (2.0*A);
@@ -229,7 +220,7 @@
                     return t;
                 }
                 else{
-                    return 4096.0;
+                    return 10000.0;
                 }
             }
         }
@@ -504,50 +495,57 @@
         {
             vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
 
-            vec3 pe = cameraDistance * vec3(cameraX, cameraY, cameraZ);// pe is the original position of the eye camera.
+            vec3 pe = cameraDistance * vec3(cameraX, cameraY, cameraZ); // pe is the original position of the eye camera.
 
-            //vec3 n2 = normalize(vec3(viewX, viewY, viewZ)); //start from zero, camera direction;
-            vec3 n2 = normalize(vec3(0.0,0.0,0.0) - pe); //centrilize.
+            vec3 n2 = normalize(vec3(0.0,0.0,0.0) - pe); // set center of canvas
 
-            n2 = normalize(n2 + vec3(viewX, viewY, viewZ));
+            n2 = normalize(n2 + 0.3 * vec3(viewX, viewY, viewZ)); // set center of canvas
 
-            vec3 V_up = vec3(0.0, 0.0, 1.0);
-            vec3 n0 = normalize(cross(n2, V_up));
+            vec3 V_up = vec3(0.0, 1.0, 0.0); // set head direction
+            vec3 n0 = normalize(cross(n2, V_up)); // set canvas 
             vec3 n1 = normalize(cross(n0, n2));
 
             float screen_distance = 4.0;
 
             float s0 = 5.; //width and height.
-            float s1 = 7.;
+            float s1 = 8.;
             vec3 pc = pe + screen_distance * n2;
             vec3 p00 = pc - (s0 * n0 + s1 * n1) / 2.0;
 
             vec3 pp = p00 + f_texcoord.s * s0 * n0 + f_texcoord.t * s1 * n1;
-            vec3 npe = normalize(pp - pe); //at the screen position .
-
+            vec3 npe = normalize(pp - pe); // eye direction
 
 
             vec3 cur_normal; //final normal direction
             vec3 cur_posi; //final position and final distance
 
             //plane1
-            vec3 plane_ni = vec3(1., 0., 0.); // plane norm direction.
-            vec3 plane_color = vec3(0.5, 0.5, 0.);
-            vec3 plane_position = vec3(1., 1., 0.); //plane position
+            vec3 plane_ni = normalize(vec3(1., 0., 0.)); // plane norm direction.
+            vec3 plane_color = vec3(0.5, 0.0, 0.);
+            vec3 plane_position = vec3(0., 0., 0.); //plane position
 
             float plane_d = plane_intersect_solver(plane_position, plane_ni, pe, npe);
             vec3 plane_norm = plane_ni;
 
             //plane2
-            vec3 plane_ni_2 = vec3(0.5, 0.5, 0.); // plane norm direction.
-            vec3 plane_color_2 = vec3(0.5, 0., 0.5); //
-            vec3 plane_position_2 = vec3(1., 1., 0.); //plane position
+            vec3 plane_ni_2 = vec3(0., 0., 1.); // plane norm direction.
+            vec3 plane_color_2 = vec3(0.0, 0., 0.5); //
+            vec3 plane_position_2 = vec3(0., 0., 0.); //plane position
 
             float plane_d_2 = plane_intersect_solver(plane_position_2, plane_ni_2, pe, npe);
             vec3 plane_norm_2 = plane_ni_2;
 
+            //plane3
+            vec3 plane_ni_3 = vec3(0., 1., 0.); // plane norm direction.
+            vec3 plane_color_3 = vec3(0., 0.5, 0.0); //
+            vec3 plane_position_3 = vec3(0., 0., 0.); //plane position
+
+            float plane_d_3 = plane_intersect_solver(plane_position_3, plane_ni_3, pe, npe);
+            vec3 plane_norm_3 = plane_ni_3;
+            
+
             //sphere
-            vec3 sphere_position = vec3(3.0, 0.0, 1.0); // plane norm direction.
+            vec3 sphere_position = vec3(7.0, 2.0, 10.0); // plane norm direction.
             vec3 sphere_color = vec3(0., 0.5, 0.5);
             float sphere_radius = 2.0;
 
@@ -555,12 +553,12 @@
             vec3 sphere_norm = sphere_normal_solver(sphere_position, sphere_radius, pe, npe);
 
             //sphere2
-            vec3 sphere_position_2 = vec3(10.0, 1.0, 2.0); // plane norm direction.
-            vec3 sphere_color_2 = vec3(0.1, 0.1, 0.8);
-            float sphere_radius_2 = 2.0;
+            vec3 sphere_position2 = vec3(12.0, 5.0, 10.0); // plane norm direction.
+            vec3 sphere_color2 = vec3(0.5, 0., 0.5);
+            float sphere_radius2 = 2.0;
 
-            float sphere_d_2 = sphere_intersect_solver(sphere_position_2, sphere_radius_2, pe, npe);
-            vec3 sphere_norm_2 = sphere_normal_solver(sphere_position_2, sphere_radius_2, pe, npe);
+            float sphere_d2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pe, npe);
+            vec3 sphere_norm2 = sphere_normal_solver(sphere_position2, sphere_radius2, pe, npe);
 
             //Cyliner.
             vec3 v2 = vec3(0, 0., 1.);
@@ -600,6 +598,13 @@
                 cur_posi = pe + plane_d_2 * npe;
             }
 
+            if (shortest_distance > plane_d_3) {
+                shortest_distance = plane_d_3;
+                obj_color = plane_color_3;
+                cur_normal = plane_norm_3;
+                cur_posi = pe + plane_d_3 * npe;
+            }
+
 
             if (shortest_distance > sphere_d) {
                 shortest_distance = sphere_d;
@@ -608,14 +613,12 @@
                 cur_posi = pe + sphere_d * npe;
             }
 
-            if (shortest_distance > sphere_d_2) {
-                shortest_distance = sphere_d_2;
-                obj_color = sphere_color_2;
-                cur_normal = sphere_norm_2;
-                cur_posi = pe + sphere_d_2 * npe;
+            if (shortest_distance > sphere_d2) {
+                shortest_distance = sphere_d2;
+                obj_color = sphere_color2;
+                cur_normal = sphere_norm2;
+                cur_posi = pe + sphere_d2 * npe;
             }
-
-
 
 
             finalColor = diffuse(cur_normal, cur_posi) + vec4(spec(cur_normal, npe, cur_posi), 1.);
@@ -643,8 +646,6 @@
 	<li><a class="active" href=../Proj4/index.html>Ray Casting</a></li>
 	<li><a href=../shadow/index.html>Shadow/Height Map</a></li>
 	<li><a href=index.html>Videos</a></li>
-	<li><a href=index.html>Research</a></li>
-	<li><a href=index.html>Archive</a></li>
 	<li style="float:right"><a href="index.html">Placeholder</a></li>
 	<li style="float:right"><a href="index.html">Placeholder</a></li>
 	<li style="float:right"><a href="index.html">Placeholder</a></li>

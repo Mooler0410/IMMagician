@@ -35,7 +35,7 @@ var showDirectional = [];
 showDirectional[0] = 1;
 
 var showPointLight = [];
-showPointLight = 1;
+showPointLight[0] = 1;
 
 
 var styleBright,
@@ -113,13 +113,13 @@ function initParameters(){
     //Initialize Camera;
     camera_dis = 30;
 
-    camera_x = 0.45;
-    camera_y = 0.17;
-    camera_z = 0.39;
+    camera_x = 0.5;
+    camera_y = 0.5;
+    camera_z = 0.5;
 
-    view_x = 0.26;
-    view_y = -0.29;
-    view_z = 0.03;
+    view_x = 0;
+    view_y = 0;
+    view_z = 0;
 
     //refraction parameters
     logIOR = 0.25;//[-1, 1]
@@ -374,7 +374,7 @@ window.onload = function init()
 
     showVersionLoc = gl.getUniformLocation( program, "showVersion");
     showDirectionalLoc = gl.getUniformLocation( program, "showDirectional");
-    showPoinitLightLoc = gl.getUniformLocation( program, "showPointLight");
+    showPointLightLoc = gl.getUniformLocation( program, "showPointLight");
 
     styleBrightLoc = gl.getUniformLocation( program, "styleBright");
     styleDarkLoc = gl.getUniformLocation( program, "styleDark");
@@ -501,15 +501,6 @@ function render() {
         var checkboxName_showPointLight = '#lightPanel' + i + ' #pointLightSelect:checked';
         var showPointLightElem = $(checkboxName_showPointLight);
         showPointLight[i] = (showPointLightElem.val())?1:0;
-
-
-
-
-
-
-
-
-
     }
 
     gl.uniform1i(currentLightLoc, currentLight);
@@ -527,7 +518,7 @@ function render() {
     gl.uniform1fv(pointLightDecayLoc, pointLightDecay);
 
     gl.uniform1iv(showVersionLoc, showVersion);
-    gl.uniform1iv(showDirectinalnLoc, showDirectinal);
+    gl.uniform1iv(showDirectionalLoc, showDirectional);
     gl.uniform1iv(showPointLightLoc, showPointLight);
 
     gl.uniform1f(styleBrightLoc, styleBright);
