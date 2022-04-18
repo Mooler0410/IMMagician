@@ -604,8 +604,8 @@
             if (shortest_distance > plane_d_2) {
                 shortest_distance = plane_d_2;
                 vec3 ip = pe + shortest_distance*npe;
-                float tx = (ip.x - float(int(ip.x / 2)) * 2) / 2;
-                float ty = (ip.y - float(int(ip.y / 4)) * 4) / 4;
+                float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
                 obj_color = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
                 cur_normal = plane_norm_2;
                 cur_posi = pe + plane_d_2 * npe;
@@ -615,8 +615,8 @@
                 shortest_distance = plane_d_3;
                 // define the mapping color and mapping normal vector here haha
                 vec3 ip = pe + shortest_distance*npe;
-                float tx = (ip.x - float(int(ip.x / 4)) * 4) / 4;
-                float ty = (ip.z - float(int(ip.z / 2)) * 2) / 2;
+                float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
                 obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
                 cur_normal = plane_norm_3;
                 cur_posi = pe + plane_d_3 * npe;
