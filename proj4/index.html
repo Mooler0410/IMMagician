@@ -603,14 +603,21 @@
 
             if (shortest_distance > plane_d_2) {
                 shortest_distance = plane_d_2;
-                obj_color = plane_color_2;
+                vec3 ip = pe + shortest_distance*npe;
+                float tx = (ip.x - float(int(ip.x / 2)) * 2) / 2;
+                float ty = (ip.y - float(int(ip.y / 4)) * 4) / 4;
+                obj_color = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
                 cur_normal = plane_norm_2;
                 cur_posi = pe + plane_d_2 * npe;
             }
 
             if (shortest_distance > plane_d_3) {
                 shortest_distance = plane_d_3;
-                obj_color = plane_color_3;
+                // define the mapping color and mapping normal vector here haha
+                vec3 ip = pe + shortest_distance*npe;
+                float tx = (ip.x - float(int(ip.x / 4)) * 4) / 4;
+                float ty = (ip.z - float(int(ip.z / 2)) * 2) / 2;
+                obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
                 cur_normal = plane_norm_3;
                 cur_posi = pe + plane_d_3 * npe;
             }
@@ -663,7 +670,8 @@
             finalColor = 0.7 * diffuse(cur_normal, cur_posi) + 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
             if (lightsOnly)
             {
-                finalColor.rgb = finalColor.rgb;
+                // finalColor.rgb = finalColor.rgb;
+                finalColor.rgb = obj_color;
             }
             else
             {
@@ -748,7 +756,7 @@
                         <div id = "basicImages" class= "inCollapse collapse in" >
 
                             <div class = "imgbox_container">
-                                <h6><span title="Insert or DragnDrop bright image here">Bright Image</span></h6>
+                                <h6><span title="Insert or DragnDrop bright image here">Bright Image Paper Image</span></h6>
                                 <div>
                         		    <div id = "container2" class="imgThumb_container">
                                         <div class="btn-file">
@@ -760,7 +768,7 @@
                                 </div>
                             </div>
                             <div class = "imgbox_container">
-				    <h6><span title="Insert or DragnDrop dark image here">Dark Image</span></h6>
+				    <h6><span title="Insert or DragnDrop dark image here">Dark Image Sphere Image</span></h6>
                         		<div>
                                     <div id = "container1" class="imgThumb_container">
                                         <div class="btn-file">
