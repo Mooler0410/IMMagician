@@ -32,7 +32,7 @@ var showVersion = [];
 showVersion[0] = 1;
 
 var showDirectional = [];
-showDirectional[0] = 1;
+showDirectional[0] = 0;
 
 var showPointLight = [];
 showPointLight[0] = 1;
@@ -79,11 +79,9 @@ var fresnelC; //cos = 0.7
 var checkFresnel;
 var checkSoft;
 var realVersion;
-var directionalLight;
-var pointLight;
 
 function initParameters(){
-    lightColor =[1.0, 1.0, 1.0];
+    lightColor[0] =[1.0, 1.0, 1.0];
     //baseColor = [0.0, 0.1, 0.0];
     lightIntensity[0] = 1.0;
     pointLightDis[0] = 0.5;
@@ -91,7 +89,7 @@ function initParameters(){
     showDiffuse[0] = 1;
     showSpec[0] = 1;
     showVersion[0] = 1;
-    showDirectional[0] = 1;
+    showDirectional[0] = 0;
     showPointLight[0] = 1;
 
     timeVal = 0;
@@ -140,8 +138,6 @@ function initParameters(){
     checkFresnel = 0;
     checkSoft=0;
     realVersion = 0;
-    directionalLight=0;
-    pointLight=0;
     // Height Light parameters
     //hLightDistance = 1.0;
     //hLightIntensity = 1.0;
@@ -168,7 +164,6 @@ var pointLightDecayLoc;
 var showDiffuseLoc;
 var showSpecLoc;
 var showVersionLoc;
-
 var showDirectionalLoc;
 var showPointLightLoc;
 
@@ -184,8 +179,6 @@ var fresnelBLoc, fresnelCLoc;
 var checkFresnelLoc;
 var checkSoftLoc;
 var realVersionLoc;
-var directionalLightLoc;
-var pointLightLoc;
 
 
 /****************** For Basic shader ******************/
@@ -371,10 +364,11 @@ window.onload = function init()
     showSpecLoc = gl.getUniformLocation( program, "showSpec");
     pointLightDisLoc = gl.getUniformLocation( program, "pointLightDis");
     pointLightDecayLoc = gl.getUniformLocation( program, "pointLightDecay");
-
-    showVersionLoc = gl.getUniformLocation( program, "showVersion");
     showDirectionalLoc = gl.getUniformLocation( program, "showDirectional");
     showPointLightLoc = gl.getUniformLocation( program, "showPointLight");
+
+    showVersionLoc = gl.getUniformLocation( program, "showVersion");
+    
 
     styleBrightLoc = gl.getUniformLocation( program, "styleBright");
     styleDarkLoc = gl.getUniformLocation( program, "styleDark");
@@ -409,8 +403,6 @@ window.onload = function init()
     checkFresnelLoc = gl.getUniformLocation( program, "checkFresnel");
     checkSoftLoc = gl.getUniformLocation( program, "checkSoft");
     realVersionLoc = gl.getUniformLocation( program, "realVersion");
-    directionalLightLoc = gl.getUniformLocation(program, "directionalLight");
-    pointLightLoc = gl.getUniformLocation(program,"pointLight");
 
     render();
 };
@@ -469,12 +461,6 @@ function render() {
 
     var realVersionElem = $('#realVersionSelect:checked');
     realVersion = (realVersionElem.val())?1:0;
-
-    var directionalLightElem = $ ('#directionalLightSelect:checked');
-    directionalLight = (directionalLightElem.val())?1:0;
-
-    var pointLightElem = $ ('#pointLightSelect:checked');
-    pointLight = (pointLightElem.val())?1:0;
 
 
 
@@ -555,8 +541,6 @@ function render() {
     gl.uniform1i(checkFresnelLoc, checkFresnel);
     gl.uniform1i(checkSoftLoc, checkSoft);
     gl.uniform1f(realVersionLoc,realVersion);
-    gl.uniform1f(directionalLightLoc,directionalLight);
-    gl.uniform1f(pointLightLoc,pointLight);
 
     gl.drawArrays( gl.TRIANGLES, 0, numVertices );
 

@@ -19,12 +19,6 @@ $(document).ready(function () {
     var realVersionElem = $('#realVersionSelect');
     initCheckbox(realVersion, realVersionElem);
 
-    var directionalLightElem = $('#directionalLightSelect');
-    initCheckbox(directionalLight, directionalLightElem);
-
-    var pointLightElem = $('#pointLightSelect');
-    initCheckbox(pointLight, pointLightElem);
-
 
 
     if (lightsPosition ==1)
@@ -324,6 +318,7 @@ function setupLightFunctions(i)
     ////init colorPicker & add events
     var colorPickerName = "#lightPanel" + i + " .colorPicker";
     var colorString = color2hex(lightColor[i]);
+    console.log("current: " + currentLight + " color " + lightColor[i] + " and " + colorString);
     $(colorPickerName).attr("value", colorString);
 
 
@@ -344,6 +339,7 @@ function setupLightFunctions(i)
                         lightColor[i][1] =rgbObject.g / 255;
                         lightColor[i][2] =rgbObject.b / 255;
                         setLightMarkFill(i);//function in addLights.js
+                        console.log("current color: " + lightColor[0] + ' ' + lightColor[1]);
                     }
                 }
                 //add event: add border if it is white#ffffff;

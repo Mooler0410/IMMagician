@@ -44,6 +44,7 @@
         uniform float lightNum;
         uniform vec2 mouseXY[max_lights];
         uniform float pointLightDis[max_lights];
+        uniform bool showDirectional[max_lights];
 
 
 
@@ -60,16 +61,13 @@
                 if (float(i)< float(lightNum))
                 {
                     float x = 10.0 - (mouseXY[i].x) * 5.0;
-                    float y = 10.0 - (mouseXY[i].y) * 5.0;
-                    float z = pointLightDis[i] * 20.0;
-                    //##########################################################
-                    //proj5 directional light:
-                    //if(directionalLight[i]){}
-
-                    //proj5 point light:
-                    //if(pointLight[i]){}
-                    //##########################################################
-                    pLight[i] = vec3(x, z, y);
+                    float z = 10.0 - (mouseXY[i].y) * 5.0;
+                    float y = pointLightDis[i] * 20.0;
+                    pLight[i] = vec3(x, -y , z);
+                    if (showDirectional[i]){
+                        pLight[i] = vec3(x * 100.0, y * 100.0, z * 100.0);
+                    }
+                    // pLight[i] = vec3(5.0, 8.0, 10.0); // only for debug purpose
                 }else{
                     break;
                 }
@@ -92,6 +90,7 @@
         varying float lightN;
 
         varying vec3 pLight[max_lights];
+        float lightshadow[max_lights];
 
         varying vec2 mouseXYcopy;
 
@@ -181,10 +180,13 @@
             if (delta < 0.) {
                 return 10000.0;
             }
-            else{
-                float t = b - sqrt(delta);
-                return t;
+            if (b < 0.) {
+                return 10000.0;
             }
+
+            float t = b - sqrt(delta);
+            return t;
+            
         }
         vec3 sphere_normal_solver(vec3 center, float radius, vec3 pe, vec3 npe){
             // ((pe + k * npe) - (center - pe))^2 = radius^2
@@ -251,7 +253,7 @@
             for (int i = 0; i < max_lights; i++)
             {
                 if (float(i)< float(lightN))
-                {
+                {   
                     vec3 vLight = normalize( pLight[i] - currentP);
                     float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
                     float t = (cosTheta - styleDark) / (styleBright - styleDark);
@@ -261,14 +263,19 @@
                         t = t * t * (3.0 - 2.0 * t);
                     }
 
-
-                    if ( showDiffuse[i] )
-                    {
-                        float dis = length( pLight[i] - currentP );
-
-                        color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i];// / ( 1.0 + pointLightDecay[i] * dis *4.0);
-                        lightWeight+=lightIntensity[i] ;
-                    };
+                    if (showDiffuse[i])
+                    {   
+                        if (lightshadow[i] < 0.5)
+                        {
+                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i];
+                            lightWeight+=lightIntensity[i];
+                        }
+                        else
+                        {
+                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i] * pointLightDecay[i];
+                            lightWeight+=lightIntensity[i] * pointLightDecay[i];
+                        }
+                    }
 
                 }else{
                     break;
@@ -284,16 +291,12 @@
             vec4 c1 = vec4(1.0,1.0,1.0,1.0);//bright
 
             vec4 colorFinal = c0 * (1.0 - T) + c1 * T;
-
-
-
             if (lightsOnly )
             {
                 return T;
             }else{
                 return colorFinal;
             }
-
         }
 
         vec3 alphaControl()
@@ -303,8 +306,6 @@
         }
 
 
-
-        // 重点修改对象。
         vec3 spec(vec3 n, vec3 viewVector, vec3 currentP)
         {
             vec3 finalSpec = vec3(0.0, 0.0, 0.0);
@@ -312,22 +313,29 @@
             for (int i = 0; i < max_lights; i++)
             {
                 if (float(i)< float(lightN))
-                {
-                    vec3 vLight = normalize( pLight[i] - currentP); //哦，plight，nmd，是点光源。
+                {   
+                    vec3 vLight = normalize( pLight[i] - currentP);
                     if (showSpec[i] ){
                         vec3 specColor = lightColor[i];
                         vec3 RVector = - vLight + 2.0 * dot(n, vLight) * n ;
-                        float temp = dot(RVector, viewVector);
+                        float temp = dot(RVector, - viewVector);
                         if ( temp < 0.0 ) temp = 0.0;
                         float spec = pow(temp, 20.0); // 镜面反射的强度。specular reflect.
-                        finalSpec += specColor * spec; //各种光的混合光。
+                        if (lightshadow[i] < 0.5)
+                        {
+                            finalSpec += specColor * spec;
+                        }
+                        else
+                        {
+                            finalSpec += specColor * spec * pointLightDecay[i];
+                        }
                     }
                 }else{
                     break;
                 }
             }
 
-            return finalSpec ;
+            return finalSpec;
         }
 
         //Reflected texture is treated as ultimate plane.
@@ -495,24 +503,25 @@
         {
             vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
 
-            vec3 pe = cameraDistance * vec3(cameraX, cameraY, cameraZ); // pe is the original position of the eye camera.
+            vec3 pe = 0.1*cameraDistance * vec3(cameraX, - cameraY, cameraZ); // pe is the original position of the eye camera.
+            // pe = vec3(5.0, -5.0, 5.0);
+            vec3 n2 = normalize(vec3(5.0,10.0,5.0) - pe); // set center of canvas
 
-            vec3 n2 = normalize(vec3(0.0,0.0,0.0) - pe); // set center of canvas
-
-            n2 = normalize(n2 + 0.3 * vec3(viewX, viewY, viewZ)); // set center of canvas
-
+            // n2 = normalize(n2 + 0.3 * vec3(viewX, viewY, viewZ)); // set center of canvas
+            // n2 = normalize(vec3(0.0, 1.0, 0.0)); // only for debug
             vec3 V_up = vec3(0.0, 1.0, 0.0); // set head direction
+            V_up = vec3(0.0, 0.0, 1.0);
             vec3 n0 = normalize(cross(n2, V_up)); // set canvas 
             vec3 n1 = normalize(cross(n0, n2));
 
-            float screen_distance = 4.0;
+            float screen_distance = 5.0;
 
             float s0 = 5.; //width and height.
             float s1 = 8.;
             vec3 pc = pe + screen_distance * n2;
             vec3 p00 = pc - (s0 * n0 + s1 * n1) / 2.0;
 
-            vec3 pp = p00 + f_texcoord.s * s0 * n0 + f_texcoord.t * s1 * n1;
+            vec3 pp = p00 + f_texcoord.s * s0 * n0 + f_texcoord.t * s1 * n1; // pp is the position in 3d space
             vec3 npe = normalize(pp - pe); // eye direction
 
 
@@ -536,29 +545,30 @@
             vec3 plane_norm_2 = plane_ni_2;
 
             //plane3
-            vec3 plane_ni_3 = vec3(0., 1., 0.); // plane norm direction.
+            vec3 plane_ni_3 = vec3(0., -1., 0.); // plane norm direction.
             vec3 plane_color_3 = vec3(0., 0.5, 0.0); //
-            vec3 plane_position_3 = vec3(0., 0., 0.); //plane position
+            vec3 plane_position_3 = vec3(0., 10., 0.); //plane position
 
             float plane_d_3 = plane_intersect_solver(plane_position_3, plane_ni_3, pe, npe);
             vec3 plane_norm_3 = plane_ni_3;
-            
 
             //sphere
-            vec3 sphere_position = vec3(7.0, 2.0, 10.0); // plane norm direction.
+            vec3 sphere_position = vec3(5.0, 8.0, 5.0); // plane norm direction.
             vec3 sphere_color = vec3(0., 0.5, 0.5);
-            float sphere_radius = 2.0;
+            float sphere_radius = 1.0;
 
             float sphere_d = sphere_intersect_solver(sphere_position, sphere_radius, pe, npe);
             vec3 sphere_norm = sphere_normal_solver(sphere_position, sphere_radius, pe, npe);
+            
 
             //sphere2
-            vec3 sphere_position2 = vec3(12.0, 5.0, 10.0); // plane norm direction.
+            vec3 sphere_position2 = vec3(5.0, 8.0, 1.0); // plane norm direction.
             vec3 sphere_color2 = vec3(0.5, 0., 0.5);
-            float sphere_radius2 = 2.0;
+            float sphere_radius2 = 1.0;
 
             float sphere_d2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pe, npe);
             vec3 sphere_norm2 = sphere_normal_solver(sphere_position2, sphere_radius2, pe, npe);
+            
 
             //Cyliner.
             vec3 v2 = vec3(0, 0., 1.);
@@ -584,12 +594,12 @@
                 cur_posi = pe + cylinder_d * npe;
             }
 
-            if (shortest_distance > plane_d) {
-                shortest_distance = plane_d;
-                obj_color = plane_color;
-                cur_normal = plane_norm;
-                cur_posi = pe + plane_d * npe;
-            }
+            //if (shortest_distance > plane_d) {
+                //    shortest_distance = plane_d;
+                //    obj_color = plane_color;
+                //    cur_normal = plane_norm;
+                //    cur_posi = pe + plane_d * npe;
+                //}
 
             if (shortest_distance > plane_d_2) {
                 shortest_distance = plane_d_2;
@@ -620,10 +630,46 @@
                 cur_posi = pe + sphere_d2 * npe;
             }
 
+            // init shadow to zeros
+            for (int i = 0; i < max_lights; i++)
+            {
+                lightshadow[i] = 0.0; 
+            }
 
-            finalColor = diffuse(cur_normal, cur_posi) + vec4(spec(cur_normal, npe, cur_posi), 1.);
+            // update shadow for every light
+            for (int i = 0; i < max_lights; i++)
+            {
+                if (float(i)< float(lightN))
+                {
+                    vec3 v_tmp = normalize(pLight[i] - pe - shortest_distance*npe);
+                    vec3 pp1 = pe + shortest_distance*npe + 0.1 * v_tmp;
+                    vec3 vpl = normalize(pLight[i] - pp1);
+                    float shadow_s1 = sphere_intersect_solver(sphere_position, sphere_radius, pp1, vpl);
+                    float shadow_s2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pp1, vpl);
+                    float lightlen = length(pLight[i] - pp1);
+                    if (float(shadow_s1) > float(shadow_s2)){
+                        shadow_s1 = shadow_s2;
+                    }
+                    if (float(shadow_s1) < float(lightlen)){
+                        if (float(shadow_s1) < 300.0){
+                            lightshadow[i] = 1.0;
+                        }
+                    }
+                }else{
+                    break;
+                }
+            }
 
-            finalColor.rgb = finalColor.rgb * (1. - 0.5) + 0.5 * obj_color;
+            finalColor = 0.7 * diffuse(cur_normal, cur_posi) + 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
+            if (lightsOnly)
+            {
+                finalColor.rgb = finalColor.rgb;
+            }
+            else
+            {
+                finalColor.rgb = 0.6 * finalColor.rgb + 0.4 * obj_color;
+            }
+
             gl_FragColor = finalColor;
         }
     </script>
@@ -760,34 +806,6 @@
                     </li>
 
 
-                    <!--lights, proj5 lights in here-->
-                    <li class="panel">
-                    	<a class="myControlTitle" data-toggle= "collapse" data-parent= "#accordion_L" href="#lightControlL"  >
-                              Light
-                        </a>
-                          <div id = "lightControlL" class = "inCollapse collapse">
-                            <div class = "checkbox">
-                              <label>
-                              <span class="h6 inlineBlock" >Directional Light</span>
-                                  <div class = "checkbox_container pull-right">
-                                    <input type="checkbox" id ="directionalLightSelect" >
-                                      <div class = "pseudoCheckbox"></div>
-                                  </div>
-                              </label>
-                          </div>
-                          <div class = "checkbox">
-                              <label>
-                                  <span class="h6 inlineBlock" >Point Light</span>
-                                  <div class = "checkbox_container pull-right">
-                                      <input type="checkbox" id = "pointLightSelect">
-                                      <div class = "pseudoCheckbox"></div>
-                                  </div>
-                              </label>
-                          </div>
-                        </div>
-                    </li>
-
-
                 </ul>
             </div>
             <!--Left Column end-->
@@ -852,12 +870,8 @@
                             <div class="btn_container">
                                 <button class ="btn btn-block" id = "btn_addLight"  >ADD LIGHT</button>
                             </div>
-			    <div class="btn_container">
-                                <button class ="btn btn-block" id = "btn_Bottle"  >Bottle</button>
-                            </div>
                             <div id = "lights_container">
                                 <ul class="myAccordion" id = "accordion_Lights">
-
                                 </ul>
                             </div>
             	        </div>
@@ -1004,7 +1018,6 @@
                                 </div>
                             </div>
 
-
                         </div>
                     </li>
                     <!--Refraction-->
@@ -1097,15 +1110,6 @@
 
                                 </div>
                             </div>
-                            <!-- <div class="slider_container">
-                                <span class="h6 inlineBlock"> Translucency </span>
-                                <div class="pull-right">
-                       	            <input type="text" class="form-control mytextbox text-center" id="translucency_val" value="1">
-                                </div>
-                                <div class="slider_box">
-                       	            <input id="translucency_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div> -->
             	        </div>
                     </li>
                     <!--Reflection-->
@@ -1186,15 +1190,6 @@
                                     <input id="refl_FGdis_slider" data-slider-id='customSlider' type="text" />
                                 </div>
                             </div>
-                            <!-- <div class="slider_container">
-                                <span class="h6 inlineBlock"> Bluriness </span>
-                                <div class="pull-right">
-                           	        <input type="text" class="form-control mytextbox text-center" id="bluriness_val"    value="1">
-                                </div>
-                                <div class="slider_box">
-                           	        <input id="bluriness_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div> -->
             	       </div>
                     </li>
                     <!-- Timer -->
@@ -1221,61 +1216,6 @@
                             </div>
                         </div>
                     </li>
-                    <!-- ColorChanger -->
-
-
-                    <!--Ambient Occlusion-->
-                    <!-- <li class="panel">
-                        <a class = "myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#aoControl">
-                            Ambient Occlusion
-                        </a>
-                        <div id = "aoControl" class= "inCollapse collapse">
-                            <div class="checkbox">
-                                <label>
-                                    <span class = "h6 inlineBlock"> Show Ambient </span>
-                                    <div class = "checkbox_container pull-right">
-                                        <input type="checkbox">
-                                        <div class = "pseudoCheckbox"></div>
-                                    </div>
-                                </label>
-                            </div>
-                            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Sample size </span>
-                                <div class="pull-right">
-                                    <input type="text" class="form-control mytextbox text-center" id="amb_sampleSize_val"    value="1">
-                                </div>
-                                <div class="slider_box">
-                                    <input id="amb_sampleSize_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div>
-                            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Number of Sample </span>
-                                <div class="pull-right">
-                                    <input type="text" class="form-control mytextbox text-center" id="amb_numberOfSample_val" value="1">
-                                </div>
-                                <div class="slider_box">
-                                    <input id="amb_numberOfSample_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div>
-                        </div>
-                    </li> -->
-                    <!--Quality-->
-                    <!-- <li class="panel">
-            	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href=" #qualityControl">
-                    	    Quality
-                        </a>
-                        <div id = "qualityControl" class= "inCollapse collapse">
-               	            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Shape Map Quality </span>
-                                <div class="pull-right">
-                           	        <input type="text" class="form-control mytextbox text-center" id="smQuality_val"    value="1">
-                                </div>
-                                <div class="slider_box">
-                           	        <input id="smQuality_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div>
-            	       </div>
-                    </li> -->
                 </ul>
             </div>
             <!--Right column end-->
@@ -1297,6 +1237,24 @@
                 LIGHT{{id}}
             </a>
             <div id = "light{{id}}" class= "lightBox inCollapse collapse" >
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Directional</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "directionalLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Point Light</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "pointLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
                 <div class = "checkbox">
                     <label>
                         <span class="h6 inlineBlock" >Diffuse</span>
@@ -1341,7 +1299,7 @@
                     </div>
                 </div>
                 <div class="slider_container">
-                    <span class="h6 inlineBlock"> Light Decay </span>
+                    <span class="h6 inlineBlock"> Light Decay Shadow Power</span>
                     <div class="pull-right">
                         <input type="text" class="form-control mytextbox text-center" id="pointLGTdecay_val">
                     </div>
