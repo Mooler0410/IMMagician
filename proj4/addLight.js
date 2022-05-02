@@ -183,9 +183,6 @@ $(function() {
                 $(lightContentName).addClass('in');
                 
             }
-
-            //for show lights position 
-            //init default point
             
 
 
@@ -200,8 +197,9 @@ $(function() {
 
 function addLightParameters(index){
     //init parameter
-    mouseXY[index] = [Math.random()-0.5, Math.random()-0.5];     
-    lightColor[index] =[Math.random(), Math.random(), Math.random()];
+    mouseXY[index] = [Math.random()-0.5, Math.random()-0.5];
+    lightColor[index] =[Math.random(), Math.random(), Math.random()]; 
+    lightColor[index] =[1.0, 1.0, 1.0];
     lightIntensity[index] = 0.5;
     pointLightDis[index] = 0.5;
     pointLightDecay[index] = 0.1;

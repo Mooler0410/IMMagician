@@ -31,9 +31,11 @@
         attribute vec4 vPosition;
         attribute vec3 vNormal;
         attribute vec2 texcoord;
+        attribute vec4 vColor;
 
         varying vec2 f_texcoord;
         varying vec3 fNormal;
+        varying vec4 fColor;
 
         varying vec3 pLight[max_lights];
         varying float lightN;// = lightNum
@@ -42,6 +44,7 @@
         uniform float lightNum;
         uniform vec2 mouseXY[max_lights];
         uniform float pointLightDis[max_lights];
+        uniform bool showDirectional[max_lights];
 
 
 
@@ -57,10 +60,14 @@
             {
                 if (float(i)< float(lightNum))
                 {
-                    float x = mouseXY[i].x * 2.0 ;
-                    float y = mouseXY[i].y * 2.0;
-                    float z = pointLightDis[i];
-                    pLight[i] = vec3(x, -y, z + 0.05);
+                    float x = 10.0 - (mouseXY[i].x) * 5.0;
+                    float z = 10.0 - (mouseXY[i].y) * 5.0;
+                    float y = pointLightDis[i] * 20.0;
+                    pLight[i] = vec3(x, -y , z);
+                    if (showDirectional[i]){
+                        pLight[i] = vec3(x * 100.0, y * 100.0, z * 100.0);
+                    }
+                    // pLight[i] = vec3(5.0, 8.0, 10.0); // only for debug purpose
                 }else{
                     break;
                 }
@@ -68,6 +75,7 @@
             mouseXYcopy = mouseXY[0];
             lightN = lightNum;
             f_texcoord = texcoord;
+            fColor = vColor;
         }
     </script>
 
@@ -82,6 +90,7 @@
         varying float lightN;
 
         varying vec3 pLight[max_lights];
+        float lightshadow[max_lights];
 
         varying vec2 mouseXYcopy;
 
@@ -99,6 +108,9 @@
         uniform bool showSpec[max_lights];
 
         uniform bool showVersion[max_lights];
+        uniform bool showDirectional[max_lights];
+        uniform bool showPointLight[max_lights];
+        uniform bool showSpotLight[max_lights];
 
         uniform float styleBright, styleDark;
         uniform float alphaR, alphaG, alphaB, reflection_degree;
@@ -127,6 +139,8 @@
         uniform bool checkFresnel;
         uniform bool checkSoft;
         uniform bool realVersion;
+        uniform bool directionalLight;
+        uniform bool pointLight;
 
         vec4 normal()
         {
@@ -140,50 +154,50 @@
 
 
 
-        float plane_intersect_solver(vec3 pi,vec3 ni, vec3 ep, vec3 npe){
-            //solve (x, y, z), ((x, y, z) - pi ) * ni = 0, (x, y, z) = eye_source + k * npe. 
-            //xi = k * npe.x + ep.x
-            //yi = k * npe.y + ep.y
-            //zi = k * npe.z + ep.z
-            //(k * npe.x + ep.x) * ni.x + (k * npe.y + ep.y) * ni.y + (k * npe.z + ep.z) * ni.z = 
+        float plane_intersect_solver(vec3 plane_point,vec3 ni, vec3 pe, vec3 npe){
+            // ((x, y, z) - plane_point) * ni = 0
+            // (x, y, z) = pe + k * npe
 
-            if  (dot(ni, (ep - pi)) > 0.){
-                float k = - dot(ni, (ep - pi)) / dot(ni, npe);
-                //float k = (- ( ep.x * ni.x + ep.y * ni.y + ep.z * ni.z)) / (npe.x * ni.x + npe.y * ni.y + npe.z * ni.z);
-                return k;  // ep + k * npe
+            if  (dot(ni, npe) < 0.){
+                float k = - dot(ni, (pe - plane_point)) / dot(ni, npe);
+                return k;
             }
             else{
-                return 4096.0;
+                return 10000.0;
             }
         }
+
         vec3 plane_normal_solver(vec3 ni){
             return normalize(ni); //plain solution
         }
 
 
-        float sphere_intersect_solver(vec3 pi, float radius, vec3 ep, vec3 npe){
-            // ((ep + k * npe) - (pi - ep))^2 = radius^2
+        float sphere_intersect_solver(vec3 center, float radius, vec3 pe, vec3 npe){
+            // ((pe + k * npe) - (center - pe))^2 = radius^2
 
-            float b = dot(npe, (pi - ep));
-            float c = dot((ep - pi), (ep - pi)) - radius * radius;
+            float b = dot(npe, (center - pe));
+            float c = dot((pe - center), (pe - center)) - radius * radius;
             float delta = b*b - c;
             if (delta < 0.) {
-                return 4096.0;
+                return 10000.0;
             }
-            else{
-                float t = b - sqrt(delta); //b, 必须已经大于0了。
-                return t;
+            if (b < 0.) {
+                return 10000.0;
             }
+
+            float t = b - sqrt(delta);
+            return t;
+            
         }
-        vec3 sphere_normal_solver(vec3 pi, float radius, vec3 ep, vec3 npe){
-            // ((ep + k * npe) - (pi - ep))^2 = radius^2
-            float b = dot(npe, (pi -ep));
-            float c = dot((ep - pi), (ep - pi)) - radius * radius;
+        vec3 sphere_normal_solver(vec3 center, float radius, vec3 pe, vec3 npe){
+            // ((pe + k * npe) - (center - pe))^2 = radius^2
+            float b = dot(npe, (center - pe));
+            float c = dot((pe - center), (pe - center)) - radius * radius;
             float delta = b*b - c;
 
-            float t = b - sqrt(delta); //b, 必须已经大于0了。
+            float t = b - sqrt(delta);
 
-            vec3 intersect_norm = (ep + t * npe - (pi - ep)); //106
+            vec3 intersect_norm = (pe + t * npe - (center - pe));
             return normalize(intersect_norm);
         }
 
@@ -194,14 +208,14 @@
             float a00 = -1.; //for all cyliner.
             vec3 n0 = normalize(cross(v2, vup));
             vec3 n1 = normalize(cross(v2, n0));
-            
+
             float A = a02*(dot(n0,npe)/s0)*(dot(n0,npe)/s0) + a12*(dot(n1,npe)/s1) * (dot(n1,npe)/s1);
             float B = a02*2.0*(dot(n0,npe)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1,npe)/s1)*(dot(n1, ep-pc)/s1);
             float C = a02*(dot(n0, ep-pc)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1, ep-pc)/s1)*(dot(n1, ep-pc)/s1);
 
             float delta = B*B - 4.0*A*C;
             if (delta < 0.) {
-                return 4096.0; //Huge distance;
+                return 10000.0; //Huge distance;
             }
             else{
                 float t = (- B - sqrt(delta)) / (2.0*A);
@@ -209,7 +223,7 @@
                     return t;
                 }
                 else{
-                    return 4096.0;
+                    return 10000.0;
                 }
             }
         }
@@ -240,24 +254,29 @@
             for (int i = 0; i < max_lights; i++)
             {
                 if (float(i)< float(lightN))
-                {
+                {   
                     vec3 vLight = normalize( pLight[i] - currentP);
                     float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
                     float t = (cosTheta - styleDark) / (styleBright - styleDark);
                     if (t>1.0) t=1.0; if (t<0.0) t=0.0;
-                    
+
                     if (checkSoft){
                         t = t * t * (3.0 - 2.0 * t);
                     }
 
-
-                    if ( showDiffuse[i] )
-                    {
-                        float dis = length( pLight[i] - currentP );
-
-                        color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i];// / ( 1.0 + pointLightDecay[i] * dis *4.0);
-                        lightWeight+=lightIntensity[i] ;
-                    };
+                    if (showDiffuse[i])
+                    {   
+                        if (lightshadow[i] < 0.5)
+                        {
+                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i];
+                            lightWeight+=lightIntensity[i];
+                        }
+                        else
+                        {
+                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i] * pointLightDecay[i];
+                            lightWeight+=lightIntensity[i] * pointLightDecay[i];
+                        }
+                    }
 
                 }else{
                     break;
@@ -273,16 +292,12 @@
             vec4 c1 = vec4(1.0,1.0,1.0,1.0);//bright
 
             vec4 colorFinal = c0 * (1.0 - T) + c1 * T;
-
-
-
             if (lightsOnly )
             {
                 return T;
             }else{
                 return colorFinal;
             }
-
         }
 
         vec3 alphaControl()
@@ -292,8 +307,6 @@
         }
 
 
-
-        // 重点修改对象。
         vec3 spec(vec3 n, vec3 viewVector, vec3 currentP)
         {
             vec3 finalSpec = vec3(0.0, 0.0, 0.0);
@@ -301,22 +314,29 @@
             for (int i = 0; i < max_lights; i++)
             {
                 if (float(i)< float(lightN))
-                {
-                    vec3 vLight = normalize( pLight[i] - currentP); //哦，plight，nmd，是点光源。
+                {   
+                    vec3 vLight = normalize( pLight[i] - currentP);
                     if (showSpec[i] ){
                         vec3 specColor = lightColor[i];
                         vec3 RVector = - vLight + 2.0 * dot(n, vLight) * n ;
-                        float temp = dot(RVector, viewVector);
+                        float temp = dot(RVector, - viewVector);
                         if ( temp < 0.0 ) temp = 0.0;
                         float spec = pow(temp, 20.0); // 镜面反射的强度。specular reflect.
-                        finalSpec += specColor * spec; //各种光的混合光。
+                        if (lightshadow[i] < 0.5)
+                        {
+                            finalSpec += specColor * spec;
+                        }
+                        else
+                        {
+                            finalSpec += specColor * spec * pointLightDecay[i];
+                        }
                     }
                 }else{
                     break;
                 }
             }
 
-            return finalSpec ;
+            return finalSpec;
         }
 
         //Reflected texture is treated as ultimate plane.
@@ -329,11 +349,11 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
             reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
             reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-            
+
             vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
             reflCoord = reflCoord + reflection_degree * noise;
-            
-            
+
+
             if (reflCoord.x > 1.0 || reflCoord.x < 0.0){
                 reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
                 if ( floor(reflCoord.x) / 2.0 == 0.0)
@@ -369,10 +389,10 @@
             vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
             reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
             reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-            
+
             vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
             reflCoord = reflCoord + reflection_degree * noise;
-            
+
             if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
             {
                 reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
@@ -484,77 +504,86 @@
         {
             vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
 
-            vec3 pe = cameraDistance * vec3(cameraX, cameraY, cameraZ);// pe is the original position of the eye camera.
+            vec3 pe = 0.1*cameraDistance * vec3(cameraX, - cameraY, cameraZ); // pe is the original position of the eye camera.
+            // pe = vec3(5.0, -5.0, 5.0);
+            vec3 n2 = normalize(vec3(5.0,10.0,5.0) - pe); // set center of canvas
 
-            //vec3 n2 = normalize(vec3(viewX, viewY, viewZ)); //start from zero, camera direction;  
-            vec3 n2 = normalize(vec3(0.0,0.0,0.0) - pe); //centrilize.
-            
-            n2 = normalize(n2 + vec3(viewX, viewY, viewZ));
-
-            vec3 V_up = vec3(0.0, 0.0, 1.0);
-            vec3 n0 = normalize(cross(n2, V_up));
+            // n2 = normalize(n2 + 0.3 * vec3(viewX, viewY, viewZ)); // set center of canvas
+            // n2 = normalize(vec3(0.0, 1.0, 0.0)); // only for debug
+            vec3 V_up = vec3(0.0, 1.0, 0.0); // set head direction
+            V_up = vec3(0.0, 0.0, 1.0);
+            vec3 n0 = normalize(cross(n2, V_up)); // set canvas 
             vec3 n1 = normalize(cross(n0, n2));
 
-            float screen_distance = 4.0;
+            float screen_distance = 5.0;
 
             float s0 = 5.; //width and height.
-            float s1 = 7.;
+            float s1 = 8.;
             vec3 pc = pe + screen_distance * n2;
             vec3 p00 = pc - (s0 * n0 + s1 * n1) / 2.0;
 
-            vec3 pp = p00 + f_texcoord.s * s0 * n0 + f_texcoord.t * s1 * n1;
-            vec3 npe = normalize(pp - pe); //at the screen position .
-
+            vec3 pp = p00 + f_texcoord.s * s0 * n0 + f_texcoord.t * s1 * n1; // pp is the position in 3d space
+            vec3 npe = normalize(pp - pe); // eye direction
 
 
             vec3 cur_normal; //final normal direction
             vec3 cur_posi; //final position and final distance
-            
+
             //plane1
-            vec3 plane_ni = vec3(1., 0., 0.); // plane norm direction.
-            vec3 plane_color = vec3(0.5, 0.5, 0.);
+            vec3 plane_ni = normalize(vec3(1., 0., 0.)); // plane norm direction.
+            vec3 plane_color = vec3(0.5, 0.0, 0.);
             vec3 plane_position = vec3(0., 0., 0.); //plane position
 
             float plane_d = plane_intersect_solver(plane_position, plane_ni, pe, npe);
             vec3 plane_norm = plane_ni;
 
             //plane2
-            vec3 plane_ni_2 = vec3(0.5, 0.5, 0.); // plane norm direction.
-            vec3 plane_color_2 = vec3(0.5, 0., 0.5); //
+            vec3 plane_ni_2 = vec3(0., 0., 1.); // plane norm direction.
+            vec3 plane_color_2 = vec3(0.0, 0., 0.5); //
             vec3 plane_position_2 = vec3(0., 0., 0.); //plane position
 
             float plane_d_2 = plane_intersect_solver(plane_position_2, plane_ni_2, pe, npe);
-            vec3 plane_norm_2 = plane_ni_2;            
+            vec3 plane_norm_2 = plane_ni_2;
+
+            //plane3
+            vec3 plane_ni_3 = vec3(0., -1., 0.); // plane norm direction.
+            vec3 plane_color_3 = vec3(0., 0.5, 0.0); //
+            vec3 plane_position_3 = vec3(0., 10., 0.); //plane position
+
+            float plane_d_3 = plane_intersect_solver(plane_position_3, plane_ni_3, pe, npe);
+            vec3 plane_norm_3 = plane_ni_3;
 
             //sphere
-            vec3 sphere_position = vec3(3.0, 0.0, 1.0); // plane norm direction.
+            vec3 sphere_position = vec3(5.0, 8.0, 5.0); // plane norm direction.
             vec3 sphere_color = vec3(0., 0.5, 0.5);
-            float sphere_radius = 2.0;
+            float sphere_radius = 1.0;
 
             float sphere_d = sphere_intersect_solver(sphere_position, sphere_radius, pe, npe);
             vec3 sphere_norm = sphere_normal_solver(sphere_position, sphere_radius, pe, npe);
+            
 
             //sphere2
-            vec3 sphere_position_2 = vec3(10.0, 1.0, 2.0); // plane norm direction.
-            vec3 sphere_color_2 = vec3(0.1, 0.1, 0.8);
-            float sphere_radius_2 = 2.0;
+            vec3 sphere_position2 = vec3(5.0, 8.0, 1.0); // plane norm direction.
+            vec3 sphere_color2 = vec3(0.5, 0., 0.5);
+            float sphere_radius2 = 1.0;
 
-            float sphere_d_2 = sphere_intersect_solver(sphere_position_2, sphere_radius_2, pe, npe);
-            vec3 sphere_norm_2 = sphere_normal_solver(sphere_position_2, sphere_radius_2, pe, npe);
+            float sphere_d2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pe, npe);
+            vec3 sphere_norm2 = sphere_normal_solver(sphere_position2, sphere_radius2, pe, npe);
+            
 
             //Cyliner.
-            vec3 v2 = vec3(0, 0., 1.); 
+            vec3 v2 = vec3(0, 0., 1.);
             vec3 vup = vec3(1., 0., 0.0);
             vec3 cylinder_color = vec3(0.5, 0., 0.5);
             vec3 cylinder_position = vec3(1.0, 1.0, 1.5);
-            
+
             float a02 = 1. ;
             float a12 = 1. ;
 
             float cylinder_d = Cylinder_intersect_solver(1.5, 0.5, a02, a12, cylinder_position, pe, npe, v2, vup);
             vec3 cylinder_norm = Cylinder_normal_solver(1.5, 0.5, a02, a12, cylinder_position, pe, npe, v2, vup);
 
-            //Choice            
+            //Choice
             float shortest_distance = 4096.0 ;
 
             vec3 obj_color;
@@ -565,23 +594,36 @@
                 cur_normal = cylinder_norm;
                 cur_posi = pe + cylinder_d * npe;
             }
-            
-            
-            if (shortest_distance > plane_d) {
-                shortest_distance = plane_d;
-                obj_color = plane_color;
-                cur_normal = plane_norm;
-                cur_posi = pe + plane_d * npe;
-            }
+
+            //if (shortest_distance > plane_d) {
+                //    shortest_distance = plane_d;
+                //    obj_color = plane_color;
+                //    cur_normal = plane_norm;
+                //    cur_posi = pe + plane_d * npe;
+                //}
 
             if (shortest_distance > plane_d_2) {
                 shortest_distance = plane_d_2;
-                obj_color = plane_color_2;
+                vec3 ip = pe + shortest_distance*npe;
+                float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
+                obj_color = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
                 cur_normal = plane_norm_2;
                 cur_posi = pe + plane_d_2 * npe;
             }
-            
-            
+
+            if (shortest_distance > plane_d_3) {
+                shortest_distance = plane_d_3;
+                // define the mapping color and mapping normal vector here haha
+                vec3 ip = pe + shortest_distance*npe;
+                float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
+                obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
+                cur_normal = plane_norm_3;
+                cur_posi = pe + plane_d_3 * npe;
+            }
+
+
             if (shortest_distance > sphere_d) {
                 shortest_distance = sphere_d;
                 obj_color = sphere_color;
@@ -589,19 +631,61 @@
                 cur_posi = pe + sphere_d * npe;
             }
 
-            if (shortest_distance > sphere_d_2) {
-                shortest_distance = sphere_d_2;
-                obj_color = sphere_color_2;
-                cur_normal = sphere_norm_2;
-                cur_posi = pe + sphere_d_2 * npe;
+            if (shortest_distance > sphere_d2) {
+                shortest_distance = sphere_d2;
+                obj_color = sphere_color2;
+                cur_normal = sphere_norm2;
+                cur_posi = pe + sphere_d2 * npe;
             }
-            
-        
-            
 
-            finalColor = diffuse(cur_normal, cur_posi) + vec4(spec(cur_normal, npe, cur_posi), 1.);
+            // init shadow to zeros
+            for (int i = 0; i < max_lights; i++)
+            {
+                lightshadow[i] = 0.0; 
+            }
 
-            finalColor.rgb = finalColor.rgb * (1. - 0.5) + 0.5 * obj_color;
+            // update shadow for every light
+            for (int i = 0; i < max_lights; i++)
+            {
+                if (float(i)< float(lightN))
+                {
+                    vec3 v_tmp = normalize(pLight[i] - pe - shortest_distance*npe);
+                    vec3 pp1 = pe + shortest_distance*npe + 0.1 * v_tmp;
+                    vec3 vpl = normalize(pLight[i] - pp1);
+                    float shadow_s1 = sphere_intersect_solver(sphere_position, sphere_radius, pp1, vpl);
+                    float shadow_s2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pp1, vpl);
+                    float lightlen = length(pLight[i] - pp1);
+                    if (float(shadow_s1) > float(shadow_s2)){
+                        shadow_s1 = shadow_s2;
+                    }
+                    if (float(shadow_s1) < float(lightlen)){
+                        if (float(shadow_s1) < 300.0){
+                            lightshadow[i] = 1.0;
+                        }
+                    }
+                    vec3 vl0 = normalize(pLight[i] - vec3(5.0, 10.0, 0.0));
+                    float cos_spot = dot(vl0, vpl);
+                    if (showSpotLight[i]){
+                        if (cos_spot < 0.8){
+                            lightshadow[i] = 1.0;
+                        }
+                    }
+                }else{
+                    break;
+                }
+            }
+
+            finalColor = 0.7 * diffuse(cur_normal, cur_posi) + 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
+            if (lightsOnly)
+            {
+                // finalColor.rgb = finalColor.rgb;
+                finalColor.rgb = obj_color;
+            }
+            else
+            {
+                finalColor.rgb = 0.6 * finalColor.rgb + 0.4 * obj_color;
+            }
+
             gl_FragColor = finalColor;
         }
     </script>
@@ -624,8 +708,6 @@
 	<li><a class="active" href=../Proj4/index.html>Ray Casting</a></li>
 	<li><a href=../shadow/index.html>Shadow/Height Map</a></li>
 	<li><a href=index.html>Videos</a></li>
-	<li><a href=index.html>Research</a></li>
-	<li><a href=index.html>Archive</a></li>
 	<li style="float:right"><a href="index.html">Placeholder</a></li>
 	<li style="float:right"><a href="index.html">Placeholder</a></li>
 	<li style="float:right"><a href="index.html">Placeholder</a></li>
@@ -682,7 +764,7 @@
                         <div id = "basicImages" class= "inCollapse collapse in" >
 
                             <div class = "imgbox_container">
-                                <h6><span title="Insert or DragnDrop bright image here">Bright Image</span></h6>
+                                <h6><span title="Insert or DragnDrop bright image here">Bright Image Paper Image</span></h6>
                                 <div>
                         		    <div id = "container2" class="imgThumb_container">
                                         <div class="btn-file">
@@ -694,7 +776,7 @@
                                 </div>
                             </div>
                             <div class = "imgbox_container">
-				    <h6><span title="Insert or DragnDrop dark image here">Dark Image</span></h6>
+				    <h6><span title="Insert or DragnDrop dark image here">Dark Image Sphere Image</span></h6>
                         		<div>
                                     <div id = "container1" class="imgThumb_container">
                                         <div class="btn-file">
@@ -738,6 +820,8 @@
                             </div>
                     	</div>
                     </li>
+
+
                 </ul>
             </div>
             <!--Left Column end-->
@@ -802,12 +886,8 @@
                             <div class="btn_container">
                                 <button class ="btn btn-block" id = "btn_addLight"  >ADD LIGHT</button>
                             </div>
-			    <div class="btn_container">
-                                <button class ="btn btn-block" id = "btn_Bottle"  >Bottle</button>
-                            </div>
                             <div id = "lights_container">
                                 <ul class="myAccordion" id = "accordion_Lights">
-
                                 </ul>
                             </div>
             	        </div>
@@ -954,7 +1034,6 @@
                                 </div>
                             </div>
 
-
                         </div>
                     </li>
                     <!--Refraction-->
@@ -1047,15 +1126,6 @@
 
                                 </div>
                             </div>
-                            <!-- <div class="slider_container">
-                                <span class="h6 inlineBlock"> Translucency </span>
-                                <div class="pull-right">
-                       	            <input type="text" class="form-control mytextbox text-center" id="translucency_val" value="1">
-                                </div>
-                                <div class="slider_box">
-                       	            <input id="translucency_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div> -->
             	        </div>
                     </li>
                     <!--Reflection-->
@@ -1136,15 +1206,6 @@
                                     <input id="refl_FGdis_slider" data-slider-id='customSlider' type="text" />
                                 </div>
                             </div>
-                            <!-- <div class="slider_container">
-                                <span class="h6 inlineBlock"> Bluriness </span>
-                                <div class="pull-right">
-                           	        <input type="text" class="form-control mytextbox text-center" id="bluriness_val"    value="1">
-                                </div>
-                                <div class="slider_box">
-                           	        <input id="bluriness_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div> -->
             	       </div>
                     </li>
                     <!-- Timer -->
@@ -1171,61 +1232,6 @@
                             </div>
                         </div>
                     </li>
-                    <!-- ColorChanger -->
-
-
-                    <!--Ambient Occlusion-->
-                    <!-- <li class="panel">
-                        <a class = "myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#aoControl">
-                            Ambient Occlusion
-                        </a>
-                        <div id = "aoControl" class= "inCollapse collapse">
-                            <div class="checkbox">
-                                <label>
-                                    <span class = "h6 inlineBlock"> Show Ambient </span>
-                                    <div class = "checkbox_container pull-right">
-                                        <input type="checkbox">
-                                        <div class = "pseudoCheckbox"></div>
-                                    </div>
-                                </label>
-                            </div>
-                            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Sample size </span>
-                                <div class="pull-right">
-                                    <input type="text" class="form-control mytextbox text-center" id="amb_sampleSize_val"    value="1">
-                                </div>
-                                <div class="slider_box">
-                                    <input id="amb_sampleSize_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div>
-                            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Number of Sample </span>
-                                <div class="pull-right">
-                                    <input type="text" class="form-control mytextbox text-center" id="amb_numberOfSample_val" value="1">
-                                </div>
-                                <div class="slider_box">
-                                    <input id="amb_numberOfSample_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div>
-                        </div>
-                    </li> -->
-                    <!--Quality-->
-                    <!-- <li class="panel">
-            	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href=" #qualityControl">
-                    	    Quality
-                        </a>
-                        <div id = "qualityControl" class= "inCollapse collapse">
-               	            <div class="slider_container">
-                                <span class="h6 inlineBlock"> Shape Map Quality </span>
-                                <div class="pull-right">
-                           	        <input type="text" class="form-control mytextbox text-center" id="smQuality_val"    value="1">
-                                </div>
-                                <div class="slider_box">
-                           	        <input id="smQuality_slider" data-slider-id='customSlider' type="text"/>
-                                </div>
-                            </div>
-            	       </div>
-                    </li> -->
                 </ul>
             </div>
             <!--Right column end-->
@@ -1247,6 +1253,42 @@
                 LIGHT{{id}}
             </a>
             <div id = "light{{id}}" class= "lightBox inCollapse collapse" >
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Directional</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "directionalLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Point Light</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "pointLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Spotlight</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "spotLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Arealight</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "areaLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
                 <div class = "checkbox">
                     <label>
                         <span class="h6 inlineBlock" >Diffuse</span>
@@ -1291,7 +1333,7 @@
                     </div>
                 </div>
                 <div class="slider_container">
-                    <span class="h6 inlineBlock"> Light Decay </span>
+                    <span class="h6 inlineBlock"> Light Decay Shadow Power</span>
                     <div class="pull-right">
                         <input type="text" class="form-control mytextbox text-center" id="pointLGTdecay_val">
                     </div>

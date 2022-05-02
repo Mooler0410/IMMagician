@@ -19,6 +19,8 @@ $(document).ready(function () {
     var realVersionElem = $('#realVersionSelect');
     initCheckbox(realVersion, realVersionElem);
 
+
+
     if (lightsPosition ==1)
     {
         $('#lightPosition_container').css("display", "block");
@@ -276,6 +278,24 @@ function setupLightFunctions(i)
     var showVersionElem = $(checkboxName_showVersion);
     initCheckbox(showVersion[i], showVersionElem);
 
+    var checkboxName_showDirectional = '#lightPanel' + i + ' #directionalLightSelect';
+    var showDirectionalElem = $(checkboxName_showDirectional);
+    initCheckbox(showDirectional[i], showDirectionalElem);
+
+    var checkboxName_showPointLight = '#lightPanel' + i + ' #pointLightSelect';
+    var showPointLightElem = $(checkboxName_showPointLight);
+    initCheckbox(showPointLight[i], showPointLightElem);
+
+    var checkboxName_showSpotLight = '#lightPanel' + i + ' #spotLightSelect';
+    var showSpotLightElem = $(checkboxName_showSpotLight);
+    initCheckbox(showSpotLight[i], showSpotLightElem);
+
+    var checkboxName_showAreaLight = '#lightPanel' + i + ' #areaLightSelect';
+    var showAreaLightElem = $(checkboxName_showAreaLight);
+    initCheckbox(showAreaLight[i], showAreaLightElem);
+
+
+
 
     //////slider events
 
@@ -306,6 +326,7 @@ function setupLightFunctions(i)
     ////init colorPicker & add events
     var colorPickerName = "#lightPanel" + i + " .colorPicker";
     var colorString = color2hex(lightColor[i]);
+    console.log("current: " + currentLight + " color " + lightColor[i] + " and " + colorString);
     $(colorPickerName).attr("value", colorString);
 
 
@@ -326,6 +347,7 @@ function setupLightFunctions(i)
                         lightColor[i][1] =rgbObject.g / 255;
                         lightColor[i][2] =rgbObject.b / 255;
                         setLightMarkFill(i);//function in addLights.js
+                        console.log("current color: " + lightColor[0] + ' ' + lightColor[1]);
                     }
                 }
                 //add event: add border if it is white#ffffff;
