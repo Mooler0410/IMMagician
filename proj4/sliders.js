@@ -286,6 +286,14 @@ function setupLightFunctions(i)
     var showPointLightElem = $(checkboxName_showPointLight);
     initCheckbox(showPointLight[i], showPointLightElem);
 
+    var checkboxName_showSpotLight = '#lightPanel' + i + ' #spotLightSelect';
+    var showSpotLightElem = $(checkboxName_showSpotLight);
+    initCheckbox(showSpotLight[i], showSpotLightElem);
+
+    var checkboxName_showAreaLight = '#lightPanel' + i + ' #areaLightSelect';
+    var showAreaLightElem = $(checkboxName_showAreaLight);
+    initCheckbox(showAreaLight[i], showAreaLightElem);
+
 
 
 

@@ -37,6 +37,11 @@ showDirectional[0] = 0;
 var showPointLight = [];
 showPointLight[0] = 1;
 
+var showSpotLight = [];
+showSpotLight[0] = 1;
+
+var showAreaLight = [];
+showAreaLight[0] = 1;
 
 var styleBright,
     styleDark;
@@ -91,6 +96,8 @@ function initParameters(){
     showVersion[0] = 1;
     showDirectional[0] = 0;
     showPointLight[0] = 1;
+    showSpotLight[0] = 0;
+    showAreaLight[0] = 0;
 
     timeVal = 0;
 
@@ -166,6 +173,8 @@ var showSpecLoc;
 var showVersionLoc;
 var showDirectionalLoc;
 var showPointLightLoc;
+var showSpotLightLoc;
+var showAreaLightLoc;
 
 var styleBrightLoc, styleDarkLoc;
 var alphaRLoc, alphaGLoc, alphaBLoc;
@@ -366,6 +375,8 @@ window.onload = function init()
     pointLightDecayLoc = gl.getUniformLocation( program, "pointLightDecay");
     showDirectionalLoc = gl.getUniformLocation( program, "showDirectional");
     showPointLightLoc = gl.getUniformLocation( program, "showPointLight");
+    showSpotLightLoc = gl.getUniformLocation( program, "showSpotLight");
+    showAreaLightLoc = gl.getUniformLocation( program, "showAreaLight");
 
     showVersionLoc = gl.getUniformLocation( program, "showVersion");
     
@@ -487,6 +498,14 @@ function render() {
         var checkboxName_showPointLight = '#lightPanel' + i + ' #pointLightSelect:checked';
         var showPointLightElem = $(checkboxName_showPointLight);
         showPointLight[i] = (showPointLightElem.val())?1:0;
+
+        var checkboxName_showSpotLight = '#lightPanel' + i + ' #spotLightSelect:checked';
+        var showSpotLightElem = $(checkboxName_showSpotLight);
+        showSpotLight[i] = (showSpotLightElem.val())?1:0;
+
+        var checkboxName_showAreaLight = '#lightPanel' + i + ' #areaLightSelect:checked';
+        var showAreaLightElem = $(checkboxName_showAreaLight);
+        showAreaLight[i] = (showAreaLightElem.val())?1:0;
     }
 
     gl.uniform1i(currentLightLoc, currentLight);
@@ -506,6 +525,8 @@ function render() {
     gl.uniform1iv(showVersionLoc, showVersion);
     gl.uniform1iv(showDirectionalLoc, showDirectional);
     gl.uniform1iv(showPointLightLoc, showPointLight);
+    gl.uniform1iv(showSpotLightLoc, showSpotLight);
+    gl.uniform1iv(showAreaLightLoc, showAreaLight);
 
     gl.uniform1f(styleBrightLoc, styleBright);
     gl.uniform1f(styleDarkLoc, styleDark);
