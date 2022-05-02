@@ -86,13 +86,15 @@ h2 {
 
 .navbar-brand {
 	padding-left: 0px;
+	font-size: 30px;
+	font-weight: bold;
 }
 
 .navbar-brand:link,
 .navbar-brand:hover,
 .navbar-brand:visited {
 	text-decoration: none;
-	color: white;
+	color: black;
 }
 
 .container a {
