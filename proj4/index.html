@@ -513,7 +513,7 @@
             //plane1
             vec3 plane_ni = vec3(1., 0., 0.); // plane norm direction.
             vec3 plane_color = vec3(0.5, 0.5, 0.);
-            vec3 plane_position = vec3(1., 1., 0.); //plane position
+            vec3 plane_position = vec3(0., 0., 0.); //plane position
 
             float plane_d = plane_intersect_solver(plane_position, plane_ni, pe, npe);
             vec3 plane_norm = plane_ni;
@@ -521,7 +521,7 @@
             //plane2
             vec3 plane_ni_2 = vec3(0.5, 0.5, 0.); // plane norm direction.
             vec3 plane_color_2 = vec3(0.5, 0., 0.5); //
-            vec3 plane_position_2 = vec3(1., 1., 0.); //plane position
+            vec3 plane_position_2 = vec3(0., 0., 0.); //plane position
 
             float plane_d_2 = plane_intersect_solver(plane_position_2, plane_ni_2, pe, npe);
             vec3 plane_norm_2 = plane_ni_2;            
@@ -566,6 +566,7 @@
                 cur_posi = pe + cylinder_d * npe;
             }
             
+            
             if (shortest_distance > plane_d) {
                 shortest_distance = plane_d;
                 obj_color = plane_color;
@@ -594,7 +595,7 @@
                 cur_normal = sphere_norm_2;
                 cur_posi = pe + sphere_d_2 * npe;
             }
-
+            
         
             
 
