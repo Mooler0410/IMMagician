@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="img/favicon.ico">
+
+    <title>Mock3D</title>
+
+    <!-- Google font -->
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300' rel='stylesheet' type='text/css'>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.css" rel="stylesheet"> <!--have bootstrap.min.css-->
+	  <link href="css/offcanvas.css" rel="stylesheet">
+    <link href="css/bootstrap-slider.css" rel="stylesheet">
+    <link href="css/jquery.minicolors.css" rel="stylesheet">
+
+
+    <!-- Custom styles for this template -->
+    <link href="css/mock3d.css" rel="stylesheet">
+    <!--<script src="math.js" type="text/javascript"></script> -->
+    <script src=https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js></script>
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        #define max_lights 14
+
+        attribute vec4 vPosition;
+        attribute vec3 vNormal;
+        attribute vec2 texcoord;
+        attribute vec4 vColor;
+
+        varying vec2 f_texcoord;
+        varying vec3 fNormal;
+        varying vec4 fColor;
+
+        varying vec3 pLight[max_lights];
+        varying float lightN;// = lightNum
+        varying vec2 mouseXYcopy;
+
+        uniform float lightNum;
+        uniform vec2 mouseXY[max_lights];
+        uniform float pointLightDis[max_lights];
+        uniform bool showDirectional[max_lights];
+
+
+
+        void main()
+        {
+
+            gl_Position = vPosition;
+
+            vec4 transformedNormal = vec4(vNormal, 1.0) /* + vec4(0.0, 0.0, 0.5, 0.0) */;
+            fNormal = normalize(transformedNormal.xyz);
+
+            for (int i = 0; i < max_lights; i++)
+            {
+                if (float(i)< float(lightNum))
+                {
+                    float x = 10.0 - (mouseXY[i].x) * 5.0;
+                    float z = 10.0 - (mouseXY[i].y) * 5.0;
+                    float y = pointLightDis[i] * 20.0;
+                    pLight[i] = vec3(x, -y , z);
+                    if (showDirectional[i]){
+                        pLight[i] = vec3(x * 100.0, y * 100.0, z * 100.0);
+                    }
+                    // pLight[i] = vec3(5.0, 8.0, 10.0); // only for debug purpose
+                }else{
+                    break;
+                }
+            }
+            mouseXYcopy = mouseXY[0];
+            lightN = lightNum;
+            f_texcoord = texcoord;
+            fColor = vColor;
+        }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        #define max_lights 14
+
+        precision mediump float;
+
+        varying vec2 f_texcoord;
+        varying vec3 fNormal; //(0,0,1)
+
+        varying float lightN;
+
+        varying vec3 pLight[max_lights];
+        float lightshadow[max_lights];
+
+        varying vec2 mouseXYcopy;
+
+        uniform sampler2D uSamplerColor0, uSamplerColor1, uSamplerNormal, uSamplerForeground, uSamplerBackground, uSamplerAlpha;
+
+        uniform int currentLight;
+
+        uniform bool lightsOnly;
+
+        uniform vec3 lightColor[max_lights];
+        uniform float lightIntensity[max_lights];
+        uniform float pointLightDecay[max_lights];
+
+        uniform bool showDiffuse[max_lights];
+        uniform bool showSpec[max_lights];
+
+        uniform bool showVersion[max_lights];
+        uniform bool showDirectional[max_lights];
+        uniform bool showPointLight[max_lights];
+        uniform bool showSpotLight[max_lights];
+
+        uniform float styleBright, styleDark;
+        uniform float alphaR, alphaG, alphaB, reflection_degree;
+        uniform float logIOR, BGdis;
+
+        uniform float FGdis;
+
+        uniform int reflMap;// 1: plane, 2:hemisphere
+        uniform float FGshiftX;
+        uniform float FGshiftY;
+        uniform float FGscaleX;
+        uniform float FGscaleY;
+
+        uniform float dayTime;
+        uniform float cameraDistance;
+        uniform float cameraX;
+        uniform float cameraY;
+        uniform float cameraZ;
+        uniform float viewX;
+        uniform float viewY;
+        uniform float viewZ;
+
+        uniform float fresnelIntensity;
+        uniform float fresnelB;
+        uniform float fresnelC;
+        uniform bool checkFresnel;
+        uniform bool checkSoft;
+        uniform bool realVersion;
+        uniform bool directionalLight;
+        uniform bool pointLight;
+
+        vec4 normal()
+        {
+            //Generate real normal direction from a rgb map.
+            vec4 normalMap = texture2D(uSamplerNormal, vec2(f_texcoord.s, f_texcoord.t) );
+            vec3 normalDisplace = normalMap.rgb;
+            normalDisplace = 2.0*normalDisplace - 1.0;
+            normalDisplace = normalize(normalDisplace);
+            return vec4(normalize(fNormal + normalDisplace), normalMap.a);
+        }
+
+
+
+        float plane_intersect_solver(vec3 plane_point,vec3 ni, vec3 pe, vec3 npe){
+            // ((x, y, z) - plane_point) * ni = 0
+            // (x, y, z) = pe + k * npe
+
+            if  (dot(ni, npe) < 0.){
+                float k = - dot(ni, (pe - plane_point)) / dot(ni, npe);
+                return k;
+            }
+            else{
+                return 10000.0;
+            }
+        }
+
+        vec3 plane_normal_solver(vec3 ni){
+            return normalize(ni); //plain solution
+        }
+
+
+        float sphere_intersect_solver(vec3 center, float radius, vec3 pe, vec3 npe){
+            // ((pe + k * npe) - (center - pe))^2 = radius^2
+
+            float b = dot(npe, (center - pe));
+            float c = dot((pe - center), (pe - center)) - radius * radius;
+            float delta = b*b - c;
+            if (delta < 0.) {
+                return 10000.0;
+            }
+            if (b < 0.) {
+                return 10000.0;
+            }
+
+            float t = b - sqrt(delta);
+            return t;
+            
+        }
+        vec3 sphere_normal_solver(vec3 center, float radius, vec3 pe, vec3 npe){
+            // ((pe + k * npe) - (center - pe))^2 = radius^2
+            float b = dot(npe, (center - pe));
+            float c = dot((pe - center), (pe - center)) - radius * radius;
+            float delta = b*b - c;
+
+            float t = b - sqrt(delta);
+
+            vec3 intersect_norm = (pe + t * npe - (center - pe));
+            return normalize(intersect_norm);
+        }
+
+
+        float Cylinder_intersect_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ep, vec3 npe, vec3 v2, vec3 vup){
+            //a02=1,a12=1, a22=0, a21=0, a00=−1,
+
+            float a00 = -1.; //for all cyliner.
+            vec3 n0 = normalize(cross(v2, vup));
+            vec3 n1 = normalize(cross(v2, n0));
+
+            float A = a02*(dot(n0,npe)/s0)*(dot(n0,npe)/s0) + a12*(dot(n1,npe)/s1) * (dot(n1,npe)/s1);
+            float B = a02*2.0*(dot(n0,npe)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1,npe)/s1)*(dot(n1, ep-pc)/s1);
+            float C = a02*(dot(n0, ep-pc)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1, ep-pc)/s1)*(dot(n1, ep-pc)/s1);
+
+            float delta = B*B - 4.0*A*C;
+            if (delta < 0.) {
+                return 10000.0; //Huge distance;
+            }
+            else{
+                float t = (- B - sqrt(delta)) / (2.0*A);
+                if (t > 0.) {
+                    return t;
+                }
+                else{
+                    return 10000.0;
+                }
+            }
+        }
+
+        vec3 Cylinder_normal_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ph, vec3 npe, vec3 v2, vec3 vup){
+            //a02=1,a12=1, a22=0, a21=0, a00=−1,
+
+            float a00 = -1.0; //for all cyliner.
+            vec3 n0 = normalize(cross(v2, vup));
+            vec3 n1 = normalize(cross(v2, n0));
+
+
+            float w0 = 2.0 * a02 * dot(n0, ph-pc)/s0/s0;
+            float w1 = 2.0 * a12 * dot(n1, ph-pc)/s1/s1;
+
+            vec3 norm_h = n0 * w0 + n1 * w1;
+
+            return normalize(norm_h);
+        }
+
+
+        vec4 diffuse(vec3 n, vec3 currentP)
+        {
+
+            vec4 color = vec4(0,0,0,1);
+            float lightWeight = 0.0;
+
+            for (int i = 0; i < max_lights; i++)
+            {
+                if (float(i)< float(lightN))
+                {   
+                    vec3 vLight = normalize( pLight[i] - currentP);
+                    float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
+                    float t = (cosTheta - styleDark) / (styleBright - styleDark);
+                    if (t>1.0) t=1.0; if (t<0.0) t=0.0;
+
+                    if (checkSoft){
+                        t = t * t * (3.0 - 2.0 * t);
+                    }
+
+                    if (showDiffuse[i])
+                    {   
+                        if (lightshadow[i] < 0.5)
+                        {
+                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i];
+                            lightWeight+=lightIntensity[i];
+                        }
+                        else
+                        {
+                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i] * pointLightDecay[i];
+                            lightWeight+=lightIntensity[i] * pointLightDecay[i];
+                        }
+                    }
+
+                }else{
+                    break;
+                }
+            }
+
+            vec4 T = color;//lightWeight;
+
+            //vec4 c0 = texture2D(uSamplerColor0, vec2(f_texcoord.s, f_texcoord.t) );//dark
+            //vec4 c1 = texture2D(uSamplerColor1, vec2(f_texcoord.s, f_texcoord.t) );//bright
+
+            vec4 c0 = vec4(0.0,0.0,0.0,1.0);//dark
+            vec4 c1 = vec4(1.0,1.0,1.0,1.0);//bright
+
+            vec4 colorFinal = c0 * (1.0 - T) + c1 * T;
+            if (lightsOnly )
+            {
+                return T;
+            }else{
+                return colorFinal;
+            }
+        }
+
+        vec3 alphaControl()
+        {
+            vec4 alphaMap = texture2D(uSamplerAlpha, vec2(f_texcoord.s, f_texcoord.t) );
+            return alphaMap.rgb;
+        }
+
+
+        vec3 spec(vec3 n, vec3 viewVector, vec3 currentP)
+        {
+            vec3 finalSpec = vec3(0.0, 0.0, 0.0);
+
+            for (int i = 0; i < max_lights; i++)
+            {
+                if (float(i)< float(lightN))
+                {   
+                    vec3 vLight = normalize( pLight[i] - currentP);
+                    if (showSpec[i] ){
+                        vec3 specColor = lightColor[i];
+                        vec3 RVector = - vLight + 2.0 * dot(n, vLight) * n ;
+                        float temp = dot(RVector, - viewVector);
+                        if ( temp < 0.0 ) temp = 0.0;
+                        float spec = pow(temp, 20.0); // 镜面反射的强度。specular reflect.
+                        if (lightshadow[i] < 0.5)
+                        {
+                            finalSpec += specColor * spec;
+                        }
+                        else
+                        {
+                            finalSpec += specColor * spec * pointLightDecay[i];
+                        }
+                    }
+                }else{
+                    break;
+                }
+            }
+
+            return finalSpec;
+        }
+
+        //Reflected texture is treated as ultimate plane.
+        vec3 reflect1(vec3 n)
+        {
+
+            float reflectIntensity = 1.0;
+            vec3 reflect = - 1.0 * vec3(0.0, 0.0, 1.0) + 2.0 * dot(n, vec3(0.0, 0.0, 1.0)) * n;
+            vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5) ;//+ vLight0.xy ;
+            vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
+            reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
+            reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
+
+            vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+            reflCoord = reflCoord + reflection_degree * noise;
+
+
+            if (reflCoord.x > 1.0 || reflCoord.x < 0.0){
+                reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
+                if ( floor(reflCoord.x) / 2.0 == 0.0)
+                {
+                    reflCoord.x = 1.0 - reflCoord.x;
+                }
+            }
+            if (reflCoord.y > 1.0 || reflCoord.y < 0.0){
+                reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
+                if ( floor(reflCoord.y) / 2.0 == 0.0)
+                {
+                    reflCoord.y = 1.0 - reflCoord.y;
+                }
+            }
+            vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ; //texture2D获取到了 第二个坐标参数对应的纹理的颜色。
+
+            if (checkFresnel){
+                reflColor = vec4(1.0,1.0,1.0,1.0);
+            }
+            return reflColor.rgb * reflectIntensity;
+        }
+
+
+
+
+        // Reflected texture is treated as if it is on a hemisphere 1 unit
+        // away from the surface.
+        vec3 reflect2(vec3 n)
+        {
+
+            float reflectIntensity = 1.0;
+            vec2 reflCoord = f_texcoord + n.xy/n.z * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5);
+            vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
+            reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
+            reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
+
+            vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
+            reflCoord = reflCoord + reflection_degree * noise;
+
+            if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
+            {
+                reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
+                if ( floor(reflCoord.x) / 2.0 == 0.0)
+                {
+                    reflCoord.x = 1.0 - reflCoord.x;
+                }
+            }
+            if (reflCoord.y > 1.0 || reflCoord.y < 0.0)
+            {
+                reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
+                if ( floor(reflCoord.y) / 2.0 == 0.0)
+                {
+                    reflCoord.y = 1.0 - reflCoord.y;
+                }
+            }
+
+            vec4 reflColor = texture2D(uSamplerForeground, reflCoord);
+            if (checkFresnel){
+                reflColor = vec4(1.0,1.0,1.0,1.0);
+            }
+            return reflColor.rgb * reflectIntensity;
+        }
+
+
+
+
+
+        vec3 refract2(vec3 n) // Photorealistic equation
+        {
+            float refractIntensity = 1.0;
+            float ior = pow(2.0, logIOR);
+            float cos1 = dot(n, vec3(0, 0, 1.0)); //vLight
+            float cos2 = sqrt(1.0 + ior * ior * ( (cos1 * cos1) - 1.0 ));
+            vec3 refract = -1.0 * ior * vec3(0, 0, 1.0) + (ior * cos1 - cos2) * n; // vec3(0,0,1) -> vLight
+            vec2 refrCoord = f_texcoord + (refract.xy / refract.z ) * (2.0 * BGdis);
+            vec4 refrColor = texture2D(uSamplerBackground, refrCoord);
+            if (checkFresnel == true)
+            {
+                refrColor = vec4(0,0,0,1.0);
+            }
+            return refrColor.rgb * refractIntensity;
+        }
+
+        vec3 refract(vec3 n) // Ergun's way
+        {
+            float refractIntensity = 1.0;
+            float s = logIOR;
+            vec3 l = vec3(0,0,-1);//eye ray
+            vec3 temp =  cross (-n, l);
+            vec3 Vsurface = cross (temp, -n) ;
+            vec3 refract;
+            if ( s > 0.0 ) refract = l * (1.0 - (-s)) + (-n) * (-s);
+            if ( s < 0.0 ) refract = l * (1.0 - (s) ) + Vsurface * ( s);
+
+
+            vec2 refrCoord = f_texcoord + (refract.xy / refract.z ) * (2.0 * BGdis);
+            vec4 refrColor = texture2D(uSamplerBackground, refrCoord);
+            if (checkFresnel == true)
+            {
+                refrColor = vec4(0,0,0,1.0);
+            }
+            return refrColor.rgb * refractIntensity;
+        }
+
+
+        vec3 fresnelBlend(vec3 n, vec3 refl, vec3 refr)
+        {
+            float cos = dot(n, vec3(0, 0, 1.0) );
+            float N = (logIOR + 1.0) / 2.0;
+            float Amin = 0.02,
+                  Amax = 0.3;
+            float Cmin = 0.4,
+                  Cmax = 1.0;
+
+            float A = Amin * ( 1.0 - N ) + Amax * N;
+            float B = 0.0;
+            float C = Cmin * ( 1.0 - N ) + Cmax * N;
+            float D = 1.0;
+
+            float num1 = sqrt( 1.0 - fresnelB * fresnelB );
+            float num2 = sqrt( 1.0 - fresnelC * fresnelC );
+            // float num1 = fresnelC ;
+            // float num2 = fresnelB ;
+
+            float fresnel;
+            float F;
+            if ( 1.0 > cos && cos > num1 ) {
+                F = ( cos - num1 ) / ( 1.0 - num1 );
+                fresnel = A * F  + B * ( 1.0 - F ) ;
+            }else if ( num1 > cos && cos > num2 ){
+                F = ( cos - num2 ) / ( num1 - num2 );
+                fresnel = B * F + C * ( 1.0 - F );
+            }else if ( num2 > cos && cos > 0.0){
+                F = ( cos - 0.0 ) / ( num2 - 0.0 );
+                fresnel = C * F + D * ( 1.0 - F );
+            }
+
+            if (fresnelIntensity > 0.0){
+                fresnel = 1.0 * fresnelIntensity + fresnel * ( 1.0 - fresnelIntensity);
+                return refl * fresnel + refr * ( 1.0 - fresnel );
+            }else{
+                fresnel = fresnel * (1.0 + fresnelIntensity);
+                return refl * fresnel + refr * ( 1.0 - fresnel );
+            }
+        }
+
+        void main()
+        {
+            vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
+
+            vec3 pe = 0.1*cameraDistance * vec3(cameraX, - cameraY, cameraZ); // pe is the original position of the eye camera.
+            // pe = vec3(5.0, -5.0, 5.0);
+            vec3 n2 = normalize(vec3(5.0,10.0,5.0) - pe); // set center of canvas
+
+            // n2 = normalize(n2 + 0.3 * vec3(viewX, viewY, viewZ)); // set center of canvas
+            // n2 = normalize(vec3(0.0, 1.0, 0.0)); // only for debug
+            vec3 V_up = vec3(0.0, 1.0, 0.0); // set head direction
+            V_up = vec3(0.0, 0.0, 1.0);
+            vec3 n0 = normalize(cross(n2, V_up)); // set canvas 
+            vec3 n1 = normalize(cross(n0, n2));
+
+            float screen_distance = 5.0;
+
+            float s0 = 5.; //width and height.
+            float s1 = 8.;
+            vec3 pc = pe + screen_distance * n2;
+            vec3 p00 = pc - (s0 * n0 + s1 * n1) / 2.0;
+
+            vec3 pp = p00 + f_texcoord.s * s0 * n0 + f_texcoord.t * s1 * n1; // pp is the position in 3d space
+            vec3 npe = normalize(pp - pe); // eye direction
+
+
+            vec3 cur_normal; //final normal direction
+            vec3 cur_posi; //final position and final distance
+
+            //plane1
+            vec3 plane_ni = normalize(vec3(1., 0., 0.)); // plane norm direction.
+            vec3 plane_color = vec3(0.5, 0.0, 0.);
+            vec3 plane_position = vec3(0., 0., 0.); //plane position
+
+            float plane_d = plane_intersect_solver(plane_position, plane_ni, pe, npe);
+            vec3 plane_norm = plane_ni;
+
+            //plane2
+            vec3 plane_ni_2 = vec3(0., 0., 1.); // plane norm direction.
+            vec3 plane_color_2 = vec3(0.0, 0., 0.5); //
+            vec3 plane_position_2 = vec3(0., 0., 0.); //plane position
+
+            float plane_d_2 = plane_intersect_solver(plane_position_2, plane_ni_2, pe, npe);
+            vec3 plane_norm_2 = plane_ni_2;
+
+            //plane3
+            vec3 plane_ni_3 = vec3(0., -1., 0.); // plane norm direction.
+            vec3 plane_color_3 = vec3(0., 0.5, 0.0); //
+            vec3 plane_position_3 = vec3(0., 10., 0.); //plane position
+
+            float plane_d_3 = plane_intersect_solver(plane_position_3, plane_ni_3, pe, npe);
+            vec3 plane_norm_3 = plane_ni_3;
+
+            //sphere
+            vec3 sphere_position = vec3(5.0, 8.0, 5.0); // plane norm direction.
+            vec3 sphere_color = vec3(0., 0.5, 0.5);
+            float sphere_radius = 1.0;
+
+            float sphere_d = sphere_intersect_solver(sphere_position, sphere_radius, pe, npe);
+            vec3 sphere_norm = sphere_normal_solver(sphere_position, sphere_radius, pe, npe);
+            
+
+            //sphere2
+            vec3 sphere_position2 = vec3(5.0, 8.0, 1.0); // plane norm direction.
+            vec3 sphere_color2 = vec3(0.5, 0., 0.5);
+            float sphere_radius2 = 1.0;
+
+            float sphere_d2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pe, npe);
+            vec3 sphere_norm2 = sphere_normal_solver(sphere_position2, sphere_radius2, pe, npe);
+            
+
+            //Cyliner.
+            vec3 v2 = vec3(0, 0., 1.);
+            vec3 vup = vec3(1., 0., 0.0);
+            vec3 cylinder_color = vec3(0.5, 0., 0.5);
+            vec3 cylinder_position = vec3(1.0, 1.0, 1.5);
+
+            float a02 = 1. ;
+            float a12 = 1. ;
+
+            float cylinder_d = Cylinder_intersect_solver(1.5, 0.5, a02, a12, cylinder_position, pe, npe, v2, vup);
+            vec3 cylinder_norm = Cylinder_normal_solver(1.5, 0.5, a02, a12, cylinder_position, pe, npe, v2, vup);
+
+            //Choice
+            float shortest_distance = 4096.0 ;
+
+            vec3 obj_color;
+
+            if (shortest_distance > cylinder_d) {
+                shortest_distance = cylinder_d;
+                obj_color = cylinder_color;
+                cur_normal = cylinder_norm;
+                cur_posi = pe + cylinder_d * npe;
+            }
+
+            //if (shortest_distance > plane_d) {
+                //    shortest_distance = plane_d;
+                //    obj_color = plane_color;
+                //    cur_normal = plane_norm;
+                //    cur_posi = pe + plane_d * npe;
+                //}
+
+            if (shortest_distance > plane_d_2) {
+                shortest_distance = plane_d_2;
+                vec3 ip = pe + shortest_distance*npe;
+                float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
+                obj_color = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
+                cur_normal = plane_norm_2;
+                cur_posi = pe + plane_d_2 * npe;
+            }
+
+            if (shortest_distance > plane_d_3) {
+                shortest_distance = plane_d_3;
+                // define the mapping color and mapping normal vector here haha
+                vec3 ip = pe + shortest_distance*npe;
+                float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
+                obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
+                cur_normal = plane_norm_3;
+                cur_posi = pe + plane_d_3 * npe;
+            }
+
+
+            if (shortest_distance > sphere_d) {
+                shortest_distance = sphere_d;
+                obj_color = sphere_color;
+                cur_normal = sphere_norm;
+                cur_posi = pe + sphere_d * npe;
+            }
+
+            if (shortest_distance > sphere_d2) {
+                shortest_distance = sphere_d2;
+                obj_color = sphere_color2;
+                cur_normal = sphere_norm2;
+                cur_posi = pe + sphere_d2 * npe;
+            }
+
+            // init shadow to zeros
+            for (int i = 0; i < max_lights; i++)
+            {
+                lightshadow[i] = 0.0; 
+            }
+
+            // update shadow for every light
+            for (int i = 0; i < max_lights; i++)
+            {
+                if (float(i)< float(lightN))
+                {
+                    vec3 v_tmp = normalize(pLight[i] - pe - shortest_distance*npe);
+                    vec3 pp1 = pe + shortest_distance*npe + 0.1 * v_tmp;
+                    vec3 vpl = normalize(pLight[i] - pp1);
+                    float shadow_s1 = sphere_intersect_solver(sphere_position, sphere_radius, pp1, vpl);
+                    float shadow_s2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pp1, vpl);
+                    float lightlen = length(pLight[i] - pp1);
+                    if (float(shadow_s1) > float(shadow_s2)){
+                        shadow_s1 = shadow_s2;
+                    }
+                    if (float(shadow_s1) < float(lightlen)){
+                        if (float(shadow_s1) < 300.0){
+                            lightshadow[i] = 1.0;
+                        }
+                    }
+                    vec3 vl0 = normalize(pLight[i] - vec3(5.0, 10.0, 0.0));
+                    float cos_spot = dot(vl0, vpl);
+                    if (showSpotLight[i]){
+                        if (cos_spot < 0.8){
+                            lightshadow[i] = 1.0;
+                        }
+                    }
+                }else{
+                    break;
+                }
+            }
+
+            finalColor = 0.7 * diffuse(cur_normal, cur_posi) + 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
+            if (lightsOnly)
+            {
+                // finalColor.rgb = finalColor.rgb;
+                finalColor.rgb = obj_color;
+            }
+            else
+            {
+                finalColor.rgb = 0.6 * finalColor.rgb + 0.4 * obj_color;
+            }
+
+            gl_FragColor = finalColor;
+        }
+    </script>
+
+    <script type="text/javascript" src="js/jquery-2.1.4.js"></script>
+    <script type="text/javascript" src="resources/webgl-utils.js"></script>
+    <script type="text/javascript" src="resources/initShaders.js"></script>
+    <script type="text/javascript" src="resources/MV.js"></script>
+<!--
+    <script type="text/javascript" src="resources/ccapture.js-master/build/CCapture.all.min.js"></script>
+-->
+
+  </head>
+
+  <body>
+	<!--nav-->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+	<ul class="fancyNav">
+	<li><a href=../index.html>Home</a></li>
+	<li><a class="active" href=../Proj4/index.html>Ray Casting</a></li>
+	<li><a href=../shadow/index.html>Shadow/Height Map</a></li>
+	<li><a href=index.html>Videos</a></li>
+	<li style="float:right"><a href="index.html">Placeholder</a></li>
+	<li style="float:right"><a href="index.html">Placeholder</a></li>
+	<li style="float:right"><a href="index.html">Placeholder</a></li>
+	<li style="float:right"><a href=index.html>Placeholder</a></li>
+	</ul>
+	</nav>
+
+	<!--content-->
+    <div class="container-fluid">
+        <div class="row row-offcanvas row-offcanvas-left">
+            <!--Left Column start-->
+            <div class="col-sm-2 sidebar sidebar-left sidebar-offcanvas">
+
+                <div class="main_button_container">
+
+		    <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    		    Dropdown button
+  		    </button>
+		    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Fence</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">EscherSphere</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Bottle</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">JarTable</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Picasso Self-Portrait</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Picasso Dora Maar</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Modigliani</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Picasso Self-Portrait Soft</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Picasso Dora Maar Soft</button>
+
+			       <button class ="main_button btn btn-block btn-mycustom dropdown-item">Modigliani Soft</button>
+
+			       <div class="clearfix"></div>
+		    </div>
+                </div>
+
+
+
+
+                <ul class="myAccordion" id = "accordion_L">
+              	    <!--Basic Images-->
+                    <li class="panel">
+                    	<a class="myControlTitle" data-toggle= "collapse" data-parent= "#accordion_L" href="#basicImages"  >
+                              Basic Images
+                        </a>
+                        <div id = "basicImages" class= "inCollapse collapse in" >
+
+                            <div class = "imgbox_container">
+                                <h6><span title="Insert or DragnDrop bright image here">Bright Image Paper Image</span></h6>
+                                <div>
+                        		    <div id = "container2" class="imgThumb_container">
+                                        <div class="btn-file">
+                                            <input type="file" id = "inputFileToLoad2" >
+                                        </div>
+                                        <div id = "container2image" class="imgThumb">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class = "imgbox_container">
+				    <h6><span title="Insert or DragnDrop dark image here">Dark Image Sphere Image</span></h6>
+                        		<div>
+                                    <div id = "container1" class="imgThumb_container">
+                                        <div class="btn-file">
+                                            <input type="file" id = "inputFileToLoad1" >
+                                        </div>
+                                        <div id = "container1image" class="imgThumb"> </div>
+                                    </div>
+                                </div>
+                            </div>
+							<div class = "imgbox_container">
+								<h6><span title="Insert or DragnDrop normal image here">Shape Image</span></h6>
+                        		<div>
+                                    <div id = "container3" class="imgThumb_container">
+                                        <div class="btn-file">
+                                            <input type="file" id = "inputFileToLoad7" >
+                                        </div>
+                                        <div id = "container3image" class="imgThumb"> </div>
+                                    </div>
+                                </div>
+                            </div>
+			     <div class = "imgbox_container hidden">
+                          	    <h6>Size Image</h6>
+                        		<div>
+                                    <div id = "container7" class="imgThumb_container">
+                                        <div class="btn-file">
+                                            <input type="file" id = "inputFileToLoad3" >
+                                        </div>
+                                        <div id = "container7image" class="imgThumb"> </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                          	    <h6>Style Control</h6>
+                          	    <div class="slider_box">
+                            		<input id="styleControl_slider" data-slider-id='customSlider' type="text" class=" span2"   value="" />
+                                </div>
+                          	     <div >
+                          		    <div class = "h7 inlineBlock">Bright</div>
+                            		<div class = "h7 pull-right">Dark</div>
+                          	     </div>
+                            </div>
+                    	</div>
+                    </li>
+
+
+                </ul>
+            </div>
+            <!--Left Column end-->
+            <!--Main Canvas start-->
+            <div class="col-sm-8 main">
+        	    <!--
+        	    <p class="pull-left visible-xs">
+            	   <button type="button" class="btn btn-primary btn-xs" data-toggle="offcanvas">Toggle nav</button>
+                </p>
+                -->
+         	    <!--
+                <img src="img/solidColor.jpg" class="img-responsive" alt="our canvas">
+                -->
+                <div class="canvas_container">
+                    <canvas id="gl-canvas" width="50" height="10" >
+                        Oops ... your browser doesn't support the HTML5 canvas element
+                    </canvas>
+
+                    <svg id = "lightPosition_container" xmlns = " http://www.w3.org/2000/svg" >
+                    </svg>
+
+                </div>
+                <div class="canvas_container">
+                    <canvas id = "task1-canvas" >
+                    </canvas>
+                </div>
+
+            </div>
+            <!--Main Canvas end-->
+
+            <!--Right column start-->
+            <div class="col-sm-2 sidebar sidebar-right">
+                <ul class="myAccordion" id = "accordion_R">
+                    <!--Light-->
+                    <li class="panel">
+            	        <a class = "myControlTitle collapsed" data-toggle= "collapse" data-parent= "#accordion_R" href="#lightControl">
+                		    Light
+                        </a>
+                        <div id = "lightControl" class= "inCollapse collapse" >
+                            <div class = "checkbox">
+                                <label>
+                         		    <span class="h6 inlineBlock" >Show Lights Position</span>
+                                    <div class = "checkbox_container pull-right">
+                             	        <input type="checkbox" id ="lightsPositionSelect" >
+                                        <div class = "pseudoCheckbox"></div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class = "checkbox">
+                                <label>
+                                    <span class="h6 inlineBlock" >Show Lights Only</span>
+                                    <div class = "checkbox_container pull-right">
+                                        <input type="checkbox" id = "lightsOnlySelect">
+                                        <div class = "pseudoCheckbox"></div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- <div class="btn_container btn-addLight">
+                                <input type = "submit" class ="btn btn-default btn-block " value="Add Light">
+                            </div> -->
+                            <div class="btn_container">
+                                <button class ="btn btn-block" id = "btn_addLight"  >ADD LIGHT</button>
+                            </div>
+                            <div id = "lights_container">
+                                <ul class="myAccordion" id = "accordion_Lights">
+                                </ul>
+                            </div>
+            	        </div>
+                    </li>
+
+                    <!--Camera Control-->
+                    <li class="panel">
+                        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#cameraControl">
+                            Camera
+                        </a>
+                        <div id = "cameraControl" class= "inCollapse collapse">
+                            <div class="checkbox">
+                                <label>
+                                    <span class = "h6 inlineBlock"> Check Soft </span>
+                                    <div class = "checkbox_container pull-right">
+                                        <input type="checkbox" id ="checkSoftSelect">
+                                        <div class = "pseudoCheckbox"></div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> CameraX </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="camerax">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="camerax_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> CameraY </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="cameray">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="cameray_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> CameraZ </span>
+                                <div class="pull-right">
+                                     <input type="text" class="form-control mytextbox text-center" id="cameraz">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="cameraz_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> ViewX </span>
+                                <div class="pull-right">
+                                     <input type="text" class="form-control mytextbox text-center" id="viewx">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="viewx_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> ViewY </span>
+                                <div class="pull-right">
+                                <input type="text" class="form-control mytextbox text-center" id="viewy">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="viewy_slider" data-slider-id='customSlider' type="text"/>
+                                    </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> ViewZ </span>
+                                <div class="pull-right">
+                                <input type="text" class="form-control mytextbox text-center" id="viewz">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="viewz_slider" data-slider-id='customSlider' type="text"/>
+                                    </div>
+                            </div>
+
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> ZoomIn/Out(Field) </span>
+                                <div class="pull-right">
+                                <input type="text" class="form-control mytextbox text-center" id="cameraDis">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="cameraDis_slider" data-slider-id='customSlider' type="text"/>
+                                    </div>
+                            </div>
+
+                        </div>
+                    </li>
+
+                    <!--Additional Alpha Control-->
+                    <li class="panel">
+                        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#alphaControl">
+                            Diffuse Alpha
+                        </a>
+                        <div id = "alphaControl" class= "inCollapse collapse">
+                            <div class="imgbox_container">
+                                <h6>Alpha Image</h6>
+                                <div>
+                                    <div id = "container6" class="imgThumb_container" >
+                                        <div class="btn-file">
+                                            <input type="file" id = "inputFileToLoad6" >
+                                        </div>
+                                        <div id = "container6image" class="imgThumb"> </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Reflectiveness (Red mapped) </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="alphaInRed_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="alphaInRed_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Transparency (Green mapped) </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="alphaInGreen_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="alphaInGreen_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Fresnel (Blue mapped) </span>
+                                <div class="pull-right">
+                                     <input type="text" class="form-control mytextbox text-center" id="alphaInBlue_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="alphaInBlue_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+
+                            <!--  Project 2 alpha task   -->
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Noise Degree</span>
+                                <div class="pull-right">
+                                     <input type="text" class="form-control mytextbox text-center" id="mirror_reflection">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="mirrorReflection_slider" data-slider-id='customSlider' type="text"/>
+                                </div>
+                            </div>
+
+                        </div>
+                    </li>
+                    <!--Refraction-->
+                    <li class="panel">
+            	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#refractionControl">
+                	        Refraction
+                        </a>
+                        <div id = "refractionControl" class= "inCollapse collapse">
+                            <div class="imgbox_container">
+                		        <h6>Background image</h6>
+                		        <div>
+                                    <div id = "container5" class="imgThumb_container" >
+                                        <div class="btn-file">
+                                            <input type="file" id = "inputFileToLoad5" >
+                                        </div>
+                                        <div id = "container5image" class="imgThumb"> </div>
+                                    </div>
+                                </div>
+                	        </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Refraction </span>
+                                <div class="pull-right">
+                       	            <input type="text" class="form-control mytextbox text-center" id="refraction_val">
+                                </div>
+                                <div class="slider_box">
+                       	            <input id="refraction_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> BG Distance </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="refr_BGdis_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="refr_BGdis_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+                            <div class = "fresnel_container">
+                                <div class = "fresnelPanel">
+                                    <div class = "myFresnelTitle">
+                                        FRESNEL
+                                    </div>
+                                    <div class = "fresnelBox">
+                                        <div class="checkbox">
+                                            <label>
+                                                <span class = "h6 inlineBlock"> Check Fresnel </span>
+                                                <div class = "checkbox_container pull-right">
+                                                    <input type="checkbox" id ="checkFresnelSelect">
+                                                    <div class = "pseudoCheckbox"></div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <!--proj 3 here start-->
+                                        <div class = "checkbox">
+                                            <label>
+                                                <span class="h6 inlineBlock" >Real Version</span>
+                                                <div class = "checkbox_container pull-right">
+                                                    <input type="checkbox" id = "realVersionSelect" >
+                                                    <div class = "pseudoCheckbox"></div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <!--proj 3 here end-->
+
+
+                                        <div >
+                                            <span class="h6 inlineBlock"> Fresnel Control </span>
+                                            <div class="pull-right">
+                                                <input type="text" class="form-control mytextbox text-center" id="fresnel_intensity_val">
+                                            </div>
+                                            <div class="slider_box">
+                                                <input id="fresnel_intensity_slider" data-slider-id='customSlider' type="text" />
+                                            </div>
+                                            <div>
+                                                <div class = "h7 inlineBlock">Full Refract</div>
+                                                <div class = "h7 pull-right">Full Reflect</div>
+                                             </div>
+                                        </div>
+                                        <div>
+                                            <h6>Fresnel Position</h6>
+                                            <div class="slider_box">
+                                                <input id="fresnelControl_slider" data-slider-id='customSlider' type="text" class=" span2" value="" />
+                                            </div>
+                                            <div>
+                                                <div class = "h7 inlineBlock">Center</div>
+                                                <div class = "h7 pull-right">Edge</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+            	        </div>
+                    </li>
+                    <!--Reflection-->
+                    <li class="panel">
+            	        <a class="myControlTitle collapsed" data-toggle="collapse" data-parent = "#accordion_R" href="#reflectionControl">
+                	        Reflection
+                        </a>
+                        <div id = "reflectionControl" class= "inCollapse collapse">
+                            <div class="imgbox_container">
+                	   	       <h6>Foreground image</h6>
+                	   	       <div>
+                                    <div id = "container4" class="imgThumb_container">
+                                        <div class="btn-file">
+                                            <input type="file" id = "inputFileToLoad4" >
+                                        </div>
+                                        <div id = "container4image" class="imgThumb"> </div>
+                                    </div>
+                                </div>
+                	        </div>
+                            <div class="dropdown_container">
+                                <span class="h6 inlineBlock"> Map as </span>
+                                <div class="pull-right">
+                                     <div class="btn-group" id = "reflMap">
+                                        <button type="button" class="btn btn-default dropdown-toggle myDropdown" data-toggle="dropdown" aria-haspopup="true"  aria-expanded="false">
+                                            <span class="caret"></span>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-right">
+                                            <li><a id = "reflMap_plane">Plane</a></li>
+                                            <li><a id = "reflMap_hemisphere">Hemisphere</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Shift X</span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="refl_FGshiftX_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="refl_FGshiftX_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Shift Y</span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="refl_FGshiftY_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="refl_FGshiftY_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Scale X</span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="refl_FGscaleX_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="refl_FGscaleX_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Scale Y</span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="refl_FGscaleY_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="refl_FGscaleY_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> FG Distance </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="refl_FGdis_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="refl_FGdis_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+            	       </div>
+                    </li>
+                    <!-- Timer -->
+                    <li class="panel">
+            	        <a class="myControlTitle collapsed" data-parent = "#accordion_R" data-toggle="collapse" href="#TimeControl">
+                            Time
+                        </a>
+                        <script>
+                            date_value = 0
+                        </script>
+                        <div id = "TimeControl" class= "inCollapse collapse">
+                            <!-- This area can be folded -->
+                            <div id="time_zone">
+                                Date:
+                            </div>
+                            <div class="slider_container">
+                                <span class="h6 inlineBlock"> Time by Day </span>
+                                <div class="pull-right">
+                                    <input type="text" class="form-control mytextbox text-center" id="day_val">
+                                </div>
+                                <div class="slider_box">
+                                    <input id="day_slider" data-slider-id='customSlider' type="text" />
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <!--Right column end-->
+        </div>
+    </div>
+
+
+    <!--
+        templete 是为了方便js代码进行重复的插入。
+        相当于是snippets
+        不会再网页中显示
+        但是可以通过js代码动态进行插入
+    -->
+    <!-- light templete -->
+    <script type="text/template" data-template="light">
+        <li class = "panel" data-id ="{{id}}" id = "lightPanel{{id}}">
+            <a class = "myControlTitle myLightsTitle collapsed" data-toggle= "collapse" data-parent= "#accordion_Lights" href="#light{{id}}">
+                <div class = "destroy" ></div>
+                LIGHT{{id}}
+            </a>
+            <div id = "light{{id}}" class= "lightBox inCollapse collapse" >
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Directional</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "directionalLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Point Light</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "pointLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Spotlight</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "spotLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Arealight</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "areaLightSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Diffuse</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "diffuseSelect">
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class = "checkbox">
+                    <label>
+                        <span class="h6 inlineBlock" >Specular</span>
+                        <div class = "checkbox_container pull-right">
+                            <input type="checkbox" id = "specSelect" >
+                            <div class = "pseudoCheckbox"></div>
+                        </div>
+                    </label>
+                </div>
+
+                <div>
+                    <span class="h6 inlineBlock"> Color </span>
+                    <div class="pull-right">
+                         <input class="colorPicker" type="hidden" >
+                    </div>
+                </div>
+                <div class="slider_container">
+                    <span class="h6 inlineBlock"> Intensity </span>
+                    <div class="pull-right">
+                        <input type="text" class="form-control mytextbox text-center" id="intensity_val">
+                    </div>
+                    <div class="slider_box">
+                        <input id="intensity_slider" data-slider-id='customSlider' type="text" />
+                    </div>
+                </div>
+                <div class="slider_container">
+                    <span class="h6 inlineBlock"> Light Distance </span>
+                    <div class="pull-right">
+                        <input type="text" class="form-control mytextbox text-center" id="pointLGTdis_val">
+                    </div>
+                    <div class="slider_box">
+                        <input id="pointLGTdis_slider" data-slider-id='customSlider' type="text" />
+                    </div>
+                </div>
+                <div class="slider_container">
+                    <span class="h6 inlineBlock"> Light Decay Shadow Power</span>
+                    <div class="pull-right">
+                        <input type="text" class="form-control mytextbox text-center" id="pointLGTdecay_val">
+                    </div>
+                    <div class="slider_box">
+                        <input id="pointLGTdecay_slider" data-slider-id='customSlider' type="text" />
+                    </div>
+                </div>
+
+            </div>
+        </li>
+
+    </script>
+
+    <!-- Bootstrap core JavaScript  ================================================== -->
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/bootstrap-slider.js"></script>
+
+    <!--colorpicker-->
+    <script src="js/jquery.minicolors.min.js"></script>
+
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+    <script src="js/ie10-viewport-bug-workaround.js"></script>
+
+    <!-- More -->
+    <script type="text/javascript" src="dragndrop.js"></script>
+    <script type="text/javascript" src="cube.js"></script>
+    <script type="text/javascript" src="sliders.js"></script>
+    <script type="text/javascript" src="addLight.js"></script>
+
+  </body>
+</html>
