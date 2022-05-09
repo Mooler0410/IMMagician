@@ -151,7 +151,43 @@
             normalDisplace = normalize(normalDisplace);
             return vec4(normalize(fNormal + normalDisplace), normalMap.a);
         }
-
+        vec4 diffuse(vec3 n, vec3 currentP){
+            vec4 color = vec4(0,0,0,1);
+            float lightWeight = 0.0;
+        
+            for (int i = 0; i < max_lights; i++){
+                if (float(i)< float(lightN)){   
+                    vec3 vLight = normalize( pLight[i] - currentP);
+                    float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
+                    float t = (cosTheta - styleDark) / (styleBright - styleDark);
+                    if (t>1.0) {t=1.0;} 
+                    if (t<0.0) {t=0.0;}
+        
+                    if (checkSoft){t = t * t * (3.0 - 2.0 * t);}
+         
+                    if (showDiffuse[i]){   
+                        color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i];
+                        lightWeight+=lightIntensity[i];
+                    }
+                }
+                else{
+                    break;
+                }
+            }
+        
+            vec4 T = color;//lightWeight;
+        
+            vec4 c0 = vec4(0.0,0.0,0.0,1.0);//dark
+            vec4 c1 = vec4(1.0,1.0,1.0,1.0);//bright
+        
+            vec4 colorFinal = c0 * (1.0 - T) + c1 * T;
+            if (lightsOnly ){
+                return T;
+            }
+            else{
+                return colorFinal;
+            }
+        }
 
 
         float plane_intersect_solver(vec3 plane_point,vec3 ni, vec3 pe, vec3 npe){
@@ -199,22 +235,73 @@
         }
 
 
+        vec3 refract(vec3 n, vec3 in_vec){ // Photorealistic equation
+            float ior = pow(2.0, logIOR);
+            float cos1 = dot(n, in_vec); //vLight
+            float delta = 1.0 + ior * ior * ( (cos1 * cos1) - 1.0 );
+            vec3 refract_n;
+            if(delta >= 0.){ 
+                //line 162
+                float cos2 = sqrt(delta);
+                refract_n = -1.0 * ior * in_vec + (ior * cos1 - cos2) * n; // vec3(0,0,1) -> vLight
+            }
+            else{
+                refract_n = vec3(-256.0, -256.0, -256.0); //No refraction.
+            }
+            return refract_n;
+        }
 
+        vec3 reflect_2(vec3 n, vec3 in_vec){ // Photorealistic equation
+            float cos1 = dot(n, in_vec); //vLight
+            vec3 reflect_n = in_vec - 2. * cos1 * n;
+            return reflect_n;
+        }
 
-        vec4 tracing_func(float s1_p, floar s1_r, vec3 s1_c,
-                        float s2_p, float s2_r, vec3 s2_c,
-                        float p1_n, float p1_p, vec3 p1_c,
-                        float p2_n, float p2_p, vec3 p2_c,
+        //compute the real ratio.
+        float fresnelBlend(vec3 n, vec3 in_vec){
+            float cos = dot(n, in_vec );
+            float fresnel;
+            if (realVersion) {
+                float ior = pow(2.0, logIOR);
+                ior = 1.0 / ior;
+        
+                float square = 1.0 - ior * ior * (1.0 - cos * cos);
+                if (square < 0.0) {
+                    square = 0.0;
+                }
+        
+                float rs = (ior * cos - square) / (ior * cos + square);
+                rs = rs * rs;
+        
+                float rp = (ior * square - cos) / (ior * square + cos);
+                rp = rp * rp;
+        
+                fresnel = (rs + rp) / 2.0;
+            }
+            if (fresnelIntensity > 0.0){
+                fresnel = 1.0 * fresnelIntensity + fresnel * ( 1.0 - fresnelIntensity);
+            }
+            else{
+                fresnel = fresnel * (1.0 + fresnelIntensity);
+            }
+            return fresnel;
+        }
+
+        vec4 tracing_func(vec3 s1_p, float s1_r, vec3 s1_c,
+                        vec3 s2_p, float s2_r, vec3 s2_c,
+                        vec3 p1_n, vec3 p1_p, vec3 p1_c,
+                        vec3 p2_n, vec3 p2_p, vec3 p2_c,
                         float K, vec3 in_point, vec3 in_vec,
                         bool check_fresnel){
 
             vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
+            float recur_threshold = 1.0;
 
             vec3 cur_normal; //final normal direction
             vec3 cur_posi; //final position and final distance
             
             //plane1
-            float plane_d_1 = plane_intersect_solver(p1_p, p1_n, in_point, in_vec);
+            float plane_d_1 = plane_intersect_solver(p1_p, p1_n, in_point, in_vec); //line 223.
             vec3 plane_norm_1 = p1_n;
 
             //plane2
@@ -232,7 +319,7 @@
             float shortest_distance = 4096.0 ;
 
             vec3 obj_color;
-            float transparent = 1.0;
+            float transparent = 0.;
 
             //sphere 1 is transparent.
             //sphere 2 is not transparent.
@@ -246,7 +333,7 @@
                 obj_color = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
                 cur_normal = plane_norm_1;
                 cur_posi = in_point + plane_d_1 * in_vec;
-                transparent = -1.0
+                transparent = -1.0;
             }
 
             if (shortest_distance > plane_d_2) {
@@ -258,7 +345,7 @@
                 obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
                 cur_normal = plane_norm_2;
                 cur_posi = in_point + plane_d_2 * in_vec;
-                transparent = -1.0
+                transparent = -1.0;
             }
 
 
@@ -267,7 +354,7 @@
                 obj_color = s1_c;
                 cur_normal = sphere_norm_1;
                 cur_posi = in_point + sphere_d_1 * in_vec;
-                transparent = 1.0
+                transparent = 1.0;
             }
 
             if (shortest_distance > sphere_d_2) {
@@ -275,37 +362,53 @@
                 obj_color = s2_c;
                 cur_normal = sphere_norm_2;
                 cur_posi = in_point + sphere_d_2 * in_vec;
-                transparent = -1.0
+                transparent = -1.0;
             }
-
-
-            //compute reflection
-
-            //compute refraction
-
             
 
             float kn = 0.5;
-
             finalColor = diffuse(cur_normal, cur_posi); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
-
+            finalColor = 0.6 * finalColor + 0.4 * obj_color;
             vec3 Cn = finalColor.rgb;
 
-            if (shortest_distance == ){         
-                return Cn; //the tracing stops, for no further reflection and refraction.
+
+            if (shortest_distance == 4096.0){   
+                //the tracing stops, for no further reflection and refraction. Doesn't hit anything.
+                return Cn; 
             }
             else{
                 if(K < recur_threshold){
                     //reach threshold, stop tracing.
-                    finalColor.rgb = Cn
                     return Cn;
                 }
-                else{
-                    float K_rfl = K*(1-kn)*fresnel_rfl;
-                    float K_rfr = K*(1-kn)*(1-fresnel_rfl);
-                    return kn * Cn + 
+                else{                                       
+                    //sphere 1 has referaction; sphere 2 has no. 
+                    //need to compute the reflection and refraction
+                    
+                    vec3 rfl_v = reflect_2(cur_normal, in_vec);
+                    vec3 rfr_t = refract(cur_normal, in_vec);
+
+                    if(rfr_t.r < - 20.0){
+                        //which means total reflection.
+                        //total relection.
+                        float K_rfl = K*(1-kn);
+                        return kn * Cn +  (1 - kn)  * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v); 
+                    }
+                    else{
+                        if(transparent > 0){
+                            float fresnel_rfl = fresnelBlend(cur_normal, in_vec);
+                            float K_rfl = K*(1-kn)*fresnel_rfl;
+                            float K_rfr = K*(1-kn)*(1-fresnel_rfl);
+                            return kn * Cn + 
                             (1 - kn) * ((1 - f) * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v) 
-                                    + f * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfr, rfr_point, rfr_t,)); 
+                                    + f * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfr, rfr_point, rfr_t,));
+                        }
+                        else{
+                            //not a transparent object.
+                            float K_rfl = K*(1-kn);
+                            return kn * Cn +  (1 - kn)  * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v); 
+                        }
+                    }
                 }
             }
         }
@@ -339,37 +442,24 @@
             vec3 npe = normalize(pp - pe); // eye direction
 
 
-            vec3 cur_normal; //final normal direction
-            vec3 cur_posi; //final position and final distance
-
-
             //plane1
             vec3 plane_ni_1 = vec3(0., 0., 1.); // plane norm direction.
             vec3 plane_color_1 = vec3(0.0, 0., 0.5); //
             vec3 plane_position_1 = vec3(0., 0., 0.); //plane position
-
-
             //plane2
             vec3 plane_ni_2 = vec3(0., -1., 0.); // plane norm direction.
             vec3 plane_color_2 = vec3(0., 0.5, 0.0); //
             vec3 plane_position_2 = vec3(0., 10., 0.); //plane position
-
             //sphere1
             vec3 sphere_position1 = vec3(5.0, 8.0, 5.0); // plane norm direction.
             vec3 sphere_color1 = vec3(0., 0.5, 0.5);
             float sphere_radius1 = 1.0;
-
             //sphere2
             vec3 sphere_position2 = vec3(5.0, 8.0, 1.0); // plane norm direction.
             vec3 sphere_color2 = vec3(0.5, 0., 0.5);
             float sphere_radius2 = 1.0;
 
-
-
-            float _while = 1.0;
-            float _threshold = 0.01;
             float K = 1.0;
-
             finalColor.rgb = tracing_func(sphere_position1, sphere_radius1, sphere_color1, 
                                         sphere_position2, sphere_radius2, sphere_color2,
                                         plane_norm_1, plane_position_1, plane_color_1,
