@@ -391,3 +391,489 @@
             
             gl_FragColor = finalColor;
         }
+
+        vec3 trace(in vec3 pos, in vec3 dir, in Light light) {
+        
+            HitInfo info;
+            vec3 c = vec3(0.5);
+        
+            for(int i = 0; i < 3; i++) {
+                if(intersect(pos, dir, info, light)) {
+                    bool shadow = false;
+                    vec3 L = normalize(light.position - info.pos);
+                    vec3 N = normalize(info.normal);
+                    vec3 V = normalize(pos - info.pos);
+                    float intense;
+                    vec3 shadowRayOrigin = info.pos;
+        
+                    vec3 shadowRayDirection = L;
+                    float dist = length(light.position - info.pos);
+        
+                    if(info.reflectType == 5) {
+                        Material sphere = sphere(uLambertianColor);
+        
+                        intense = intensityAt(light, info, shadow, pos, sphere, c);
+                        c = c * intense;
+                    }
+        
+                    if(info.reflectType == 0) { // ground
+        
+                        vec2 uv;
+                        uv.x = info.u;
+                        uv.y = info.v;
+                        vec3 tempC = texture(uFloorTexture, uv).xyz;
+                        Material plane = plane(tempC);
+        
+                        intense = intensityAt(light, info, shadow, pos, plane, c);
+                        c = c * intense;
+                                //c = phongShading(N, L, V, light, plane, info,shadow)*intense;
+                        //dir = info.normal + random_in_unit_sphere();
+                        
+               
+        
+                    } else if(info.reflectType == 1) { // lambertian
+
+        
+                        Material sphere = sphere(uLambertianColor);
+                        intense = intensityAt(light, info, shadow, pos, sphere, c);
+                        c = c * intense;
+
+                    } else if(info.reflectType == 2) { // specular
+        
+                        Material mirror = mirror();
+        
+                        intense = intensityAt(light, info, shadow, pos, mirror, c);
+                        c = c * intense;
+        
+                                //c = phongShading(N, L, V, light, mirror, info,shadow)*intense;
+                        dir = normalize(reflect(dir, info.normal) + uFuzziness * random_in_unit_sphere());
+                        if(dot(info.normal, dir) < 0.0)
+                            break;
+                    } else if(info.reflectType == 3) { // dielectric
+                        vec3 n;
+                        float eta, cosine;
+                        float prob;
+                        Material mirror = mirror();
+                        if(dot(dir, info.normal) < 0.0) {
+                            n = info.normal;
+                            eta =  1.0/uIndexOfRefraction;
+                            cosine = -dot(dir, info.normal) / length(dir);
+                        } else {
+                           
+                            n = -info.normal;
+                            eta = uIndexOfRefraction;
+                            cosine = uIndexOfRefraction * dot(dir, info.normal) / length(dir);
+                        }
+                        vec3 r = refract(normalize(dir), normalize(n), eta);
+                        bool isRefracted = r.x!=0.0|| r.y!=0.0 ||r.z!=0.0;
+                        if(isRefracted){
+                            prob = schlick(cosine, uIndexOfRefraction);
+                        }
+
+                        if(random()<prob){
+                            intense = intensityAt(light, info, shadow, pos, mirror, c);
+                            c = c * intense;
+                            dir = normalize(reflect(dir, n));
+                        }
+                        else{
+
+                            dir = normalize(r);
+                        }
+                        //dir= r;
+                        //dir = r == vec3(0.0) || random() < schlick(cosine, uIndexOfRefraction) ? reflect(dir, n) : r;
+                    }
+                } 
+                else {
+                    vec3 pp;
+                    bool test = envSphere(pos, dir, SPHERE_POS4, 20.0, 0.00001, 1000.0, pp);
+                    vec2 uv = sphereMap(pp, SPHERE_POS4, 20.0);
+                    vec3 tempS = texture(uSphereEnvironment, uv).xyz;
+                                                                            //c *= backgroundColor(dir);
+                    c = tempS;
+                    break;
+                }
+            }
+            return c;
+        }
+
+        vec3 tracing_func_iter(vec3 s1_p, float s1_r, vec3 s1_c,
+                            vec3 s2_p, float s2_r, vec3 s2_c,
+                            vec3 p1_n, vec3 p1_p, vec3 p1_c,
+                            vec3 p2_n, vec3 p2_p, vec3 p2_c,
+                            float K, vec3 in_point, vec3 in_vec){
+
+            vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
+            float recur_threshold = 1.0;
+
+            vec3 cur_normal; //final normal direction
+            vec3 cur_posi; //final position and final distance
+            //plane1
+            float plane_d_1 = plane_intersect_solver(p1_p, p1_n, in_point, in_vec); //line 223.
+            vec3 plane_norm_1 = p1_n;
+
+            //plane2
+            float plane_d_2 = plane_intersect_solver(p2_p, p2_n, in_point, in_vec);
+            vec3 plane_norm_2 = p2_n;
+
+            //sphere1
+            float sphere_d_1 = sphere_intersect_solver(s1_p, s1_r, in_point, in_vec);
+            vec3 sphere_norm_1 = sphere_normal_solver(s1_p, s1_r, in_point, in_vec);
+
+            //sphere2
+            float sphere_d_2 = sphere_intersect_solver(s2_p, s2_r, in_point, in_vec);
+            vec3 sphere_norm_2 = sphere_normal_solver(s2_p, s2_r, in_point, in_vec);
+            
+            float shortest_distance = 4096.0 ;
+
+            vec3 obj_color;
+
+            int transparent = -1; // 0: ground, no further reflection or refraction. 1: transparent sphere rafra + refle. 2: untransparent sphere: only refle.
+
+            //sphere 1 is transparent.
+            //sphere 2 is not transparent.
+            //all the plane is not transparent.
+
+            if (shortest_distance > plane_d_1) {
+                shortest_distance = plane_d_1;
+                vec3 ip = in_point + shortest_distance * in_vec;
+                float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
+                obj_color = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
+                cur_normal = plane_norm_1;
+                cur_posi = in_point + plane_d_1 * in_vec;
+                transparent = 0;
+            }
+
+            if (shortest_distance > plane_d_2) {
+                shortest_distance = plane_d_2;
+                // define the mapping color and mapping normal vector here haha
+                vec3 ip = in_point + shortest_distance * in_vec;
+                float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
+                obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
+                cur_normal = plane_norm_2;
+                cur_posi = in_point + plane_d_2 * in_vec;
+                transparent = 0;
+            }
+
+
+            if (shortest_distance > sphere_d_1) {
+                shortest_distance = sphere_d_1;
+                obj_color = s1_c;
+                cur_normal = sphere_norm_1;
+                cur_posi = in_point + sphere_d_1 * in_vec;
+                transparent = 1;
+            }
+
+            if (shortest_distance > sphere_d_2) {
+                shortest_distance = sphere_d_2;
+                obj_color = s2_c;
+                cur_normal = sphere_norm_2;
+                cur_posi = in_point + sphere_d_2 * in_vec;
+                transparent = 2;
+            }
+            
+
+            float kn = 0.5;
+            finalColor = diffuse(cur_normal, cur_posi); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
+            finalColor.rgb = 0.6 * finalColor.rgb + 0.4 * obj_color; //Line 290
+            vec3 Cn = finalColor.rgb;
+
+            if(transparent == 0){
+                return Cn;
+            }
+            else if(transparent == 2){
+                vec3 rfl_v = reflect_2(cur_normal, in_vec);
+
+                //reflection
+                vec3 cur_normal_rfl; //final normal direction
+                vec3 cur_posi_rfl; //final position and final distance
+                //plane1
+                float plane1_d_rfl = plane_intersect_solver(p1_p, p1_n, cur_posi, rfl_v); //line 223.
+                vec3 plane1_norm_rfl; = p1_n;
+                //plane2
+                float plane2_d_rfl = plane_intersect_solver(p2_p, p2_n, cur_posi, rfl_v);
+                vec3 plane2_norm_rfl = p2_n;
+                //sphere1
+                float sphere1_d_rfl = sphere_intersect_solver(s1_p, s1_r, cur_posi, rfl_v);
+                vec3 sphere1_norm_rfl = sphere_normal_solver(s1_p, s1_r, cur_posi, rfl_v);
+                    //sphere2
+                float sphere2_d_rfl = sphere_intersect_solver(s2_p, s2_r, cur_posi, rfl_v);
+                vec3 sphere2_norm_rfl = sphere_normal_solver(s2_p, s2_r, cur_posi, rfl_v);
+                    
+                float shortest_distance_rfl = 4096.0 ;
+
+                vec3 obj_color_rfl;
+                    
+                    //sphere 1 is transparent.
+                    //sphere 2 is not transparent.
+                    //all the plane is not transparent.
+
+                if (shortest_distance_rfl > plane1_d_rfl) {
+                    shortest_distance_rfl = plane1_d_rfl;
+                    vec3 ip = in_point + shortest_distance_rfl * rfl_v;
+                    float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                    float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
+                    obj_color_rfl = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
+                    cur_normal_rfl = plane1_norm_rfl;
+                    cur_posi_rfl = in_point + plane1_d_new * rfl_v;
+                }
+
+                if (shortest_distance_rfl > plane2_d_rfl) {
+                    shortest_distance_rfl = plane2_d_rfl;
+                    // define the mapping color and mapping normal vector here haha
+                    vec3 ip = in_point + shortest_distance_rfl * rfl_v;
+                    float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                    float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
+                    obj_color_rfl = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
+                    cur_normal_rfl = plane2_norm_rfl;
+                    cur_posi_rfl = in_point + plane2_d_new * rfl_v;
+                }
+
+
+                if (shortest_distance_rfl > sphere1_d_rfl) {
+                    shortest_distance_rfl = sphere1_d_rfl;
+                    obj_color_rfl = s1_c;
+                    cur_normalcur_normal_rfl_rfl = sphere1_norm_rfl;
+                    cur_posi_rfl = in_point + sphere1_d_rfl * rfl_v;
+                }
+
+                if (shortest_distance_rfl > sphere2_d_rfl) {
+                    shortest_distance_rfl = sphere2_d_rfl;
+                    obj_color_rfl = s2_c;
+                    cur_normal_rfl = sphere2_norm_rfl;
+                    cur_posi_rfl = in_point + sphere2_d_rfl * rfl_v;
+                }
+
+                vec4 finalColor_rfl = vec4(0.0, 0.0, 0.0, 1.0); // default color.
+                finalColor_rfl = diffuse(cur_normal_rfl, cur_posi_rfl); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
+                finalColor_rfl.rgb = 0.6 * finalColor_new.rgb + 0.4 * obj_color_new; //Line 290    
+
+                return kn * Cn +  K_rfl  * finalColor_rfl; 
+            }
+            else if(transparent == 1){
+                vec3 rfl_v = reflect_2(cur_normal, in_vec);
+                vec3 rfr_t = refract(cur_normal, in_vec);
+
+                if(rfr_t.r < - 20.0){
+                    //which means total reflection.
+                    //total relection.
+                    float K_rfl = K*(1.0-kn);  //Line 313
+
+                        //Only reflection
+                    vec3 cur_normal_rfl; //final normal direction
+                    vec3 cur_posi_rfl; //final position and final distance
+                    //plane1
+                    float plane1_d_rfl = plane_intersect_solver(p1_p, p1_n, cur_posi, rfl_v); //line 223.
+                    vec3 plane1_norm_rfl; = p1_n;
+                    //plane2
+                    float plane2_d_rfl = plane_intersect_solver(p2_p, p2_n, cur_posi, rfl_v);
+                    vec3 plane2_norm_rfl = p2_n;
+                    //sphere1
+                    float sphere1_d_rfl = sphere_intersect_solver(s1_p, s1_r, cur_posi, rfl_v);
+                    vec3 sphere1_norm_rfl = sphere_normal_solver(s1_p, s1_r, cur_posi, rfl_v);
+                    //sphere2
+                    float sphere2_d_rfl = sphere_intersect_solver(s2_p, s2_r, cur_posi, rfl_v);
+                    vec3 sphere2_norm_rfl = sphere_normal_solver(s2_p, s2_r, cur_posi, rfl_v);
+                        
+                    float shortest_distance_rfl = 4096.0 ;
+
+                    vec3 obj_color_rfl;
+                    
+                        //sphere 1 is transparent.
+                        //sphere 2 is not transparent.
+                        //all the plane is not transparent.
+
+                    if (shortest_distance_rfl > plane1_d_rfl) {
+                        shortest_distance_rfl = plane1_d_rfl;
+                        vec3 ip = in_point + shortest_distance_rfl * rfl_v;
+                        float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                        float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
+                        obj_color_rfl = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
+                        cur_normal_rfl = plane1_norm_rfl;
+                        cur_posi_rfl = in_point + plane1_d_new * rfl_v;
+                    }
+
+                    if (shortest_distance_rfl > plane2_d_rfl) {
+                        shortest_distance_rfl = plane2_d_rfl;
+                        // define the mapping color and mapping normal vector here haha
+                        vec3 ip = in_point + shortest_distance_rfl * rfl_v;
+                        float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                        float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
+                        obj_color_rfl = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
+                        cur_normal_rfl = plane2_norm_rfl;
+                        cur_posi_rfl = in_point + plane2_d_new * rfl_v;
+                    }
+
+
+                    if (shortest_distance_rfl > sphere1_d_rfl) {
+                        shortest_distance_rfl = sphere1_d_rfl;
+                        obj_color_rfl = s1_c;
+                        cur_normalcur_normal_rfl_rfl = sphere1_norm_rfl;
+                        cur_posi_rfl = in_point + sphere1_d_rfl * rfl_v;
+                    }
+
+                    if (shortest_distance_rfl > sphere2_d_rfl) {
+                        shortest_distance_rfl = sphere2_d_rfl;
+                        obj_color_rfl = s2_c;
+                        cur_normal_rfl = sphere2_norm_rfl;
+                        cur_posi_rfl = in_point + sphere2_d_rfl * rfl_v;
+                    }
+
+                    vec4 finalColor_rfl = vec4(0.0, 0.0, 0.0, 1.0); // default color.
+                    finalColor_rfl = diffuse(cur_normal_rfl, cur_posi_rfl); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
+                    finalColor_rfl.rgb = 0.6 * finalColor_new.rgb + 0.4 * obj_color_new; //Line 290
+
+                    return kn * Cn +  K_rfl  * finalColor_rfl; 
+                }
+                else{
+                    float fresnel_rfl = 0.5;//set a default value for no fresnel.
+                    if(realVersion){
+                        float fresnel_rfl = fresnelBlend(cur_normal, in_vec);
+                    }
+
+                    float K_rfl = K*(1.0 - kn)*fresnel_rfl;
+                    float K_rfr = K*(1.0 - kn)*(1.0 - fresnel_rfl);
+                    
+                    
+                    //refraction
+                    vec3 cur_normal_new; //final normal direction
+                    vec3 cur_posi_new; //final position and final distance
+                    //plane1
+                    float plane1_d_new = plane_intersect_solver(p1_p, p1_n, cur_posi, rfr_t); //line 223.
+                    vec3 plane1_norm_new = p1_n;
+
+                    //plane2
+                    float plane2_d_new = plane_intersect_solver(p2_p, p2_n, cur_posi, rfr_t);
+                    vec3 plane2_norm_new = p2_n;
+
+                    //sphere1
+                    float sphere1_d_new = sphere_intersect_solver(s1_p, s1_r, cur_posi, rfr_t);
+                    vec3 sphere1_norm_new = sphere_normal_solver(s1_p, s1_r, cur_posi, rfr_t);
+
+                    //sphere2
+                    float sphere2_d_new = sphere_intersect_solver(s2_p, s2_r, cur_posi, rfr_t);
+                    vec3 sphere2_norm_new = sphere_normal_solver(s2_p, s2_r, cur_posi, rfr_t);
+                    
+                    float shortest_distance_new = 4096.0 ;
+
+                    vec3 obj_color_new;
+                    
+                    //sphere 1 is transparent.
+                    //sphere 2 is not transparent.
+                    //all the plane is not transparent.
+
+                    if (shortest_distance_new > plane1_d_new) {
+                        shortest_distance_new = plane1_d_new;
+                        vec3 ip = in_point + shortest_distance_new * rfr_t;
+                        float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                        float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
+                        obj_color_new = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
+                        cur_normal_new = plane1_norm_new;
+                        cur_posi_new = in_point + plane1_d_new * rfr_t;
+                    }
+
+                    if (shortest_distance_new > plane2_d_new) {
+                        shortest_distance_new = plane2_d_new;
+                        // define the mapping color and mapping normal vector here haha
+                        vec3 ip = in_point + shortest_distance_new * rfr_t;
+                        float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                        float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
+                        obj_color_new = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
+                        cur_normal_new = plane2_norm_new;
+                        cur_posi_new = in_point + plane2_d_new * rfr_t;
+                    }
+
+
+                    if (shortest_distance_new > sphere1_d_new) {
+                        shortest_distance_new = sphere1_d_new;
+                        obj_color_new = s1_c;
+                        cur_normal_new = sphere1_norm_new;
+                        cur_posi_new = in_point + sphere1_d_new * rfr_t;
+                    }
+
+                    if (shortest_distance_new > sphere2_d_new) {
+                        shortest_distance_new = sphere2_d_new;
+                        obj_color_new = s2_c;
+                        cur_normal_new = sphere2_norm_new;
+                        cur_posi_new = in_point + sphere2_d_new * rfr_t;
+                    }
+                
+                    vec4 finalColor_new = vec4(0.0, 0.0, 0.0, 1.0); // default color.
+                    finalColor_new = diffuse(cur_normal_new, cur_posi_new); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
+                    finalColor_new.rgb = 0.6 * finalColor_new.rgb + 0.4 * obj_color_new; //Line 290
+
+                    //reflection
+                    vec3 cur_normal_rfl; //final normal direction
+                    vec3 cur_posi_rfl; //final position and final distance
+                    //plane1
+                    float plane1_d_rfl = plane_intersect_solver(p1_p, p1_n, cur_posi, rfl_v); //line 223.
+                    vec3 plane1_norm_rfl; = p1_n;
+                    //plane2
+                    float plane2_d_rfl = plane_intersect_solver(p2_p, p2_n, cur_posi, rfl_v);
+                    vec3 plane2_norm_rfl = p2_n;
+                    //sphere1
+                    float sphere1_d_rfl = sphere_intersect_solver(s1_p, s1_r, cur_posi, rfl_v);
+                    vec3 sphere1_norm_rfl = sphere_normal_solver(s1_p, s1_r, cur_posi, rfl_v);
+                    //sphere2
+                    float sphere2_d_rfl = sphere_intersect_solver(s2_p, s2_r, cur_posi, rfl_v);
+                    vec3 sphere2_norm_rfl = sphere_normal_solver(s2_p, s2_r, cur_posi, rfl_v);
+                    
+                    float shortest_distance_rfl = 4096.0 ;
+
+                    vec3 obj_color_rfl;
+                    
+                    //sphere 1 is transparent.
+                    //sphere 2 is not transparent.
+                    //all the plane is not transparent.
+
+                    if (shortest_distance_rfl > plane1_d_rfl) {
+                        shortest_distance_rfl = plane1_d_rfl;
+                        vec3 ip = in_point + shortest_distance_rfl * rfl_v;
+                        float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                        float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
+                        obj_color_rfl = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
+                        cur_normal_rfl = plane1_norm_rfl;
+                        cur_posi_rfl = in_point + plane1_d_new * rfl_v;
+                    }
+
+                    if (shortest_distance_rfl > plane2_d_rfl) {
+                        shortest_distance_rfl = plane2_d_rfl;
+                        // define the mapping color and mapping normal vector here haha
+                        vec3 ip = in_point + shortest_distance_rfl * rfl_v;
+                        float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                        float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
+                        obj_color_rfl = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
+                        cur_normal_rfl = plane2_norm_rfl;
+                        cur_posi_rfl = in_point + plane2_d_new * rfl_v;
+                    }
+
+
+                    if (shortest_distance_rfl > sphere1_d_rfl) {
+                        shortest_distance_rfl = sphere1_d_rfl;
+                        obj_color_rfl = s1_c;
+                        cur_normalcur_normal_rfl_rfl = sphere1_norm_rfl;
+                        cur_posi_rfl = in_point + sphere1_d_rfl * rfl_v;
+                    }
+
+                    if (shortest_distance_rfl > sphere2_d_rfl) {
+                        shortest_distance_rfl = sphere2_d_rfl;
+                        obj_color_rfl = s2_c;
+                        cur_normal_rfl = sphere2_norm_rfl;
+                        cur_posi_rfl = in_point + sphere2_d_rfl * rfl_v;
+                    }
+
+                    vec4 finalColor_rfl = vec4(0.0, 0.0, 0.0, 1.0); // default color.
+                    finalColor_rfl = diffuse(cur_normal_rfl, cur_posi_rfl); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
+                    finalColor_rfl.rgb = 0.6 * finalColor_rfl.rgb + 0.4 * obj_color_rfl; //Line 290
+
+                    return kn * Cn + K_rfr * finalColor_new.rgb + K_rfl * finalColor_rlf.agb;
+                }
+
+            }
+
+            if (shortest_distance == 4096.0){   
+                //the tracing stops, for no further reflection and refraction. Doesn't hit anything.
+                return Cn; 
+            }
+        }
