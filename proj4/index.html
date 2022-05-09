@@ -111,6 +111,7 @@
         uniform bool showDirectional[max_lights];
         uniform bool showPointLight[max_lights];
         uniform bool showSpotLight[max_lights];
+        uniform bool showAreaLight[max_lights];
 
         uniform float styleBright, styleDark;
         uniform float alphaR, alphaG, alphaB, reflection_degree;
@@ -273,8 +274,14 @@
                         }
                         else
                         {
-                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i] * pointLightDecay[i];
-                            lightWeight+=lightIntensity[i] * pointLightDecay[i];
+                            if (showAreaLight[i]){
+                                color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i] * pointLightDecay[i] / 16.0;
+                                lightWeight+=lightIntensity[i] * pointLightDecay[i];
+                            }
+                            else{
+                                color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i] * pointLightDecay[i];
+                                lightWeight+=lightIntensity[i] * pointLightDecay[i];
+                            }
                         }
                     }
 
@@ -595,13 +602,6 @@
                 cur_posi = pe + cylinder_d * npe;
             }
 
-            //if (shortest_distance > plane_d) {
-                //    shortest_distance = plane_d;
-                //    obj_color = plane_color;
-                //    cur_normal = plane_norm;
-                //    cur_posi = pe + plane_d * npe;
-                //}
-
             if (shortest_distance > plane_d_2) {
                 shortest_distance = plane_d_2;
                 vec3 ip = pe + shortest_distance*npe;
@@ -612,21 +612,32 @@
                 cur_posi = pe + plane_d_2 * npe;
             }
 
-            if (shortest_distance > plane_d_3) {
-                shortest_distance = plane_d_3;
+            // if (shortest_distance > plane_d_3) {
+                //     shortest_distance = plane_d_3;
                 // define the mapping color and mapping normal vector here haha
-                vec3 ip = pe + shortest_distance*npe;
-                float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
-                float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
-                obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
-                cur_normal = plane_norm_3;
-                cur_posi = pe + plane_d_3 * npe;
-            }
+                //     vec3 ip = pe + shortest_distance*npe;
+                //     float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
+                //     float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
+                //     obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
+                //     cur_normal = plane_norm_3;
+                //     cur_posi = pe + plane_d_3 * npe;
+                // }
 
+            // params for sphere texture mapping
+            // vec3 n1 = vec3(0, 0., 1.);
+            // vec3 n2 = vec3(0, 1., 0.);
+            // vec3 n0 = vec3(1, 0., 0.);
 
             if (shortest_distance > sphere_d) {
                 shortest_distance = sphere_d;
-                obj_color = sphere_color;
+                vec3 ip = pe + shortest_distance*npe;
+                // define the mapping color and mapping normal vector here haha
+                float v = acos(dot(n1,(ip - sphere_position))) / 3.1415926;
+                float u = acos(dot(n1,(ip - sphere_position)) * (sin(3.1415926 * v))) / (3.1415926 * 2.0);
+                if (dot(n0 ,(ip - sphere_position)) < 0.) {
+                    u = 1.0 - u;
+                }
+                obj_color = texture2D(uSamplerForeground, vec2(u, v)).rgb;
                 cur_normal = sphere_norm;
                 cur_posi = pe + sphere_d * npe;
             }
@@ -668,6 +679,31 @@
                     if (showSpotLight[i]){
                         if (cos_spot < 0.8){
                             lightshadow[i] = 1.0;
+                        }
+                    }
+                    if (showAreaLight[i]){
+                        for (int j = 0; j < 15; j++){
+                            // generate area light pos
+                            vec2 reflCoord = vec2(float(j + 3), float(j * 2));
+                            vec3 noise = vec3(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43258.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43258.5453));
+                            // fix area light w and h
+                            vec3 light_area = vec3(4.0, 5.0, 0.);
+                            vec3 plight_now = pLight[i] + light_area * noise;
+                            // generate shadow for area light
+                            vec3 v_tmp = normalize(plight_now - pe - shortest_distance*npe);
+                            vec3 pp1 = pe + shortest_distance*npe + 0.1 * v_tmp;
+                            vec3 vpl = normalize(plight_now - pp1);
+                            float shadow_s1 = sphere_intersect_solver(sphere_position, sphere_radius, pp1, vpl);
+                            float shadow_s2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pp1, vpl);
+                            float lightlen = length(plight_now - pp1);
+                            if (float(shadow_s1) > float(shadow_s2)){
+                                shadow_s1 = shadow_s2;
+                            }
+                            if (float(shadow_s1) < float(lightlen)){
+                                if (float(shadow_s1) < 300.0){
+                                    lightshadow[i] += 1.0;
+                                }
+                            }
                         }
                     }
                 }else{
