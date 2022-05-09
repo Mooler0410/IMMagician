@@ -65,7 +65,7 @@
                     float y = pointLightDis[i] * 20.0;
                     pLight[i] = vec3(x, -y , z);
                     if (showDirectional[i]){
-                        pLight[i] = vec3(x * 100.0, y * 100.0, z * 100.0);
+                        pLight[i] = vec3(x * 100.0, y * 100.0, z * 100.0);   //far enough, nearly equal to directional light.
                     }
                     // pLight[i] = vec3(5.0, 8.0, 10.0); // only for debug purpose
                 }else{
@@ -199,394 +199,7 @@
         }
 
 
-        float Cylinder_intersect_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ep, vec3 npe, vec3 v2, vec3 vup){
-            //a02=1,a12=1, a22=0, a21=0, a00=−1,
 
-            float a00 = -1.; //for all cyliner.
-            vec3 n0 = normalize(cross(v2, vup));
-            vec3 n1 = normalize(cross(v2, n0));
-
-            float A = a02*(dot(n0,npe)/s0)*(dot(n0,npe)/s0) + a12*(dot(n1,npe)/s1) * (dot(n1,npe)/s1);
-            float B = a02*2.0*(dot(n0,npe)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1,npe)/s1)*(dot(n1, ep-pc)/s1);
-            float C = a02*(dot(n0, ep-pc)/s0)*(dot(n0, ep-pc)/s0) + a12*2.0*(dot(n1, ep-pc)/s1)*(dot(n1, ep-pc)/s1);
-
-            float delta = B*B - 4.0*A*C;
-            if (delta < 0.) {
-                return 10000.0; //Huge distance;
-            }
-            else{
-                float t = (- B - sqrt(delta)) / (2.0*A);
-                if (t > 0.) {
-                    return t;
-                }
-                else{
-                    return 10000.0;
-                }
-            }
-        }
-
-        vec3 Cylinder_normal_solver(float s0, float s1, float a02, float a12, vec3 pc, vec3 ph, vec3 npe, vec3 v2, vec3 vup){
-            //a02=1,a12=1, a22=0, a21=0, a00=−1,
-
-            float a00 = -1.0; //for all cyliner.
-            vec3 n0 = normalize(cross(v2, vup));
-            vec3 n1 = normalize(cross(v2, n0));
-
-
-            float w0 = 2.0 * a02 * dot(n0, ph-pc)/s0/s0;
-            float w1 = 2.0 * a12 * dot(n1, ph-pc)/s1/s1;
-
-            vec3 norm_h = n0 * w0 + n1 * w1;
-
-            return normalize(norm_h);
-        }
-
-
-        vec4 diffuse(vec3 n, vec3 currentP)
-        {
-
-            vec4 color = vec4(0,0,0,1);
-            float lightWeight = 0.0;
-
-            for (int i = 0; i < max_lights; i++)
-            {
-                if (float(i)< float(lightN))
-                {   
-                    vec3 vLight = normalize( pLight[i] - currentP);
-                    float cosTheta = ( dot(n, vLight) + 1.0 )/2.0;
-                    float t = (cosTheta - styleDark) / (styleBright - styleDark);
-                    if (t>1.0) t=1.0; if (t<0.0) t=0.0;
-
-                    if (checkSoft){
-                        t = t * t * (3.0 - 2.0 * t);
-                    }
-
-                    if (showDiffuse[i])
-                    {   
-                        if (lightshadow[i] < 0.5)
-                        {
-                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i];
-                            lightWeight+=lightIntensity[i];
-                        }
-                        else
-                        {
-                            color += (1.0 - t) * vec4(lightColor[i], 1.0) * lightIntensity[i] * pointLightDecay[i];
-                            lightWeight+=lightIntensity[i] * pointLightDecay[i];
-                        }
-                    }
-
-                }else{
-                    break;
-                }
-            }
-
-            vec4 T = color;//lightWeight;
-
-            //vec4 c0 = texture2D(uSamplerColor0, vec2(f_texcoord.s, f_texcoord.t) );//dark
-            //vec4 c1 = texture2D(uSamplerColor1, vec2(f_texcoord.s, f_texcoord.t) );//bright
-
-            vec4 c0 = vec4(0.0,0.0,0.0,1.0);//dark
-            vec4 c1 = vec4(1.0,1.0,1.0,1.0);//bright
-
-            vec4 colorFinal = c0 * (1.0 - T) + c1 * T;
-            if (lightsOnly )
-            {
-                return T;
-            }else{
-                return colorFinal;
-            }
-        }
-
-        vec3 alphaControl()
-        {
-            vec4 alphaMap = texture2D(uSamplerAlpha, vec2(f_texcoord.s, f_texcoord.t) );
-            return alphaMap.rgb;
-        }
-
-        float general_quadrics_th(int type,
-                                float a02, float a12, float a22, float a21, float a00,
-                                float s0, float s1, float s2,
-                                vec3 v2, vec3 vup, vec3 pc,
-                                vec3 pe, vec3 npe) {
-            // find roots
-            vec3 n0 = normalize(cross(vup, v2));
-            vec3 n1 = normalize(cross(n0, v2));
-            vec3 n2 = normalize(v2);
-
-            if (type==5)   //plane
-            {
-                float th;
-                th = -1.*dot(n2,pe-pc)/dot(n2,npe);
-                if (th>=0. && dot(n2,npe)<0.)
-                    return th;
-            }
-
-            float A = a02 * dot(n0, npe) * dot(n0, npe) / (s0 * s0) + a12 * dot(n1, npe) * dot(n1, npe) / (s1 * s1) + a22 * dot(n2, npe) * dot(n2, npe) / (s2 * s2);
-            float B = 2.0 * a02 * dot(n0, npe) * dot(n0, pe - pc) / (s0 * s0) + 2.0 * a12 * dot(n1, npe) * dot(n1, pe - pc) / (s1 * s1) + 2.0 * a22 * dot(n2, npe) * dot(n2, pe - pc) / (s2 * s2) + a21 * dot(n2, npe) / s2;
-            float C = a02 * dot(n0, pe - pc) * dot(n0, pe - pc) / (s0 * s0) + a12 * dot(n1, pe - pc) * dot(n1, pe - pc) / (s1 * s1) + a22 * dot(n2, pe - pc) * dot(n2, pe - pc) / (s2 * s2) + a21 * dot(n2, pe - pc) / s2 + a00;
-            float delta = B * B - 4.0 * A * C;
-
-            if (delta >= 0.0 && -B - sqrt(delta) >= 0.0) {
-                float th = (-B - sqrt(delta)) / (2.0 * A);
-                return th;
-            } else {
-                return MAX_TH;
-            }
-        }
-
-        vec4 general_quadrics(int type,
-                            float a02, float a12, float a22, float a21, float a00,
-                            float s0, float s1, float s2,
-                            vec3 v2, vec3 vup, vec3 pc,
-                            vec3 pe, vec3 npe) {
-
-            // find roots
-            vec3 n0 = normalize(cross(vup, v2));
-            vec3 n1 = normalize(cross(n0, v2));
-            vec3 n2 = normalize(v2);
-
-            if(type==5)
-            {
-                float th;
-                th = -1.*dot(n2,pe-pc)/dot(n2,npe);
-                vec3 ph = pe + th * npe;
-                vec3 fp = 2.0 * a02 * n0 * dot(n0, ph - pc) / (s0 * s0) + 2.0 * a12 * n1 * dot(n1, ph - pc) / (s1 * s1) + 2.0 * a22 * n2 * dot(n2, ph - pc) / (s2 * s2) + a21 * n2 / s2;
-                fp = normalize(fp);
-
-                float x = dot(n0, ph - pc);
-                float y = dot(n1, ph - pc);
-                float u = x - float(floor(x));
-                if (x < 0.0)
-                u = 1.0 - u;
-                float v = y - float(floor(y));
-                if (y < 0.0)
-                v = 1.0 - v;
-
-                vec4 c = texture2D(uSamplerTexture, vec2(u, v));
-
-                return diffuse(fp, ph, c) + spec(fp, npe, ph, c);
-            }
-            float A = a02 * dot(n0, npe) * dot(n0, npe) / (s0 * s0) + a12 * dot(n1, npe) * dot(n1, npe) / (s1 * s1) + a22 * dot(n2, npe) * dot(n2, npe) / (s2 * s2);
-            float B = 2.0 * a02 * dot(n0, npe) * dot(n0, pe - pc) / (s0 * s0) + 2.0 * a12 * dot(n1, npe) * dot(n1, pe - pc) / (s1 * s1) + 2.0 * a22 * dot(n2, npe) * dot(n2, pe - pc) / (s2 * s2) + a21 * dot(n2, npe) / s2;
-            float C = a02 * dot(n0, pe - pc) * dot(n0, pe - pc) / (s0 * s0) + a12 * dot(n1, pe - pc) * dot(n1, pe - pc) / (s1 * s1) + a22 * dot(n2, pe - pc) * dot(n2, pe - pc) / (s2 * s2) + a21 * dot(n2, pe - pc) / s2 + a00;
-            float delta = B * B - 4.0 * A * C;
-
-            if (delta >= 0.0 && -B - sqrt(delta) >= 0.0) {
-                float th = (-B - sqrt(delta)) / (2.0 * A);
-                vec3 ph = pe + th * npe;
-                vec3 fp = 2.0 * a02 * n0 * dot(n0, ph - pc) / (s0 * s0) + 2.0 * a12 * n1 * dot(n1, ph - pc) / (s1 * s1) + 2.0 * a22 * n2 * dot(n2, ph - pc) / (s2 * s2) + a21 * n2 / s2;
-                fp = normalize(fp);
-
-                float x = dot(n0, ph - pc);
-                float y = dot(n1, ph - pc);
-                float u = x - float(floor(x));
-                if (x < 0.0)
-                u = 1.0 - u;
-                float v = y - float(floor(y));
-                if (y < 0.0)
-                v = 1.0 - v;
-
-                vec4 c = texture2D(uSamplerTexture, vec2(u, v));
-
-                return diffuse(fp, ph, c) + spec(fp, npe, ph, c);
-            } else {
-                return vec4(0., 0., 0., 1.);
-            }
-        }
-        
-
-        vec3 spec(vec3 n, vec3 viewVector, vec3 currentP)
-        {
-            vec3 finalSpec = vec3(0.0, 0.0, 0.0);
-
-            for (int i = 0; i < max_lights; i++)
-            {
-                if (float(i)< float(lightN))
-                {   
-                    vec3 vLight = normalize( pLight[i] - currentP);
-                    if (showSpec[i] ){
-                        vec3 specColor = lightColor[i];
-                        vec3 RVector = - vLight + 2.0 * dot(n, vLight) * n ;
-                        float temp = dot(RVector, - viewVector);
-                        if ( temp < 0.0 ) temp = 0.0;
-                        float spec = pow(temp, 20.0); // 镜面反射的强度。specular reflect.
-                        if (lightshadow[i] < 0.5)
-                        {
-                            finalSpec += specColor * spec;
-                        }
-                        else
-                        {
-                            finalSpec += specColor * spec * pointLightDecay[i];
-                        }
-                    }
-                }else{
-                    break;
-                }
-            }
-
-            return finalSpec;
-        }
-
-        //Reflected texture is treated as ultimate plane.
-        vec3 reflect1(vec3 n)
-        {
-
-            float reflectIntensity = 1.0;
-            vec3 reflect = - 1.0 * vec3(0.0, 0.0, 1.0) + 2.0 * dot(n, vec3(0.0, 0.0, 1.0)) * n;
-            vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5) ;//+ vLight0.xy ;
-            vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
-            reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
-            reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-
-            vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
-            reflCoord = reflCoord + reflection_degree * noise;
-
-
-            if (reflCoord.x > 1.0 || reflCoord.x < 0.0){
-                reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
-                if ( floor(reflCoord.x) / 2.0 == 0.0)
-                {
-                    reflCoord.x = 1.0 - reflCoord.x;
-                }
-            }
-            if (reflCoord.y > 1.0 || reflCoord.y < 0.0){
-                reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
-                if ( floor(reflCoord.y) / 2.0 == 0.0)
-                {
-                    reflCoord.y = 1.0 - reflCoord.y;
-                }
-            }
-            vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ; //texture2D获取到了 第二个坐标参数对应的纹理的颜色。
-
-            if (checkFresnel){
-                reflColor = vec4(1.0,1.0,1.0,1.0);
-            }
-            return reflColor.rgb * reflectIntensity;
-        }
-
-
-
-
-        // Reflected texture is treated as if it is on a hemisphere 1 unit
-        // away from the surface.
-        vec3 reflect2(vec3 n)
-        {
-
-            float reflectIntensity = 1.0;
-            vec2 reflCoord = f_texcoord + n.xy/n.z * FGdis + vec2( -mouseXYcopy.x * 0.5, mouseXYcopy.y * 0.5);
-            vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
-            reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX +0.5;
-            reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-
-            vec2 noise = 0.1 * vec2(fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453), fract(sin(dot(reflCoord ,vec2(12.9898,78.233))) * 43758.5453));
-            reflCoord = reflCoord + reflection_degree * noise;
-
-            if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
-            {
-                reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
-                if ( floor(reflCoord.x) / 2.0 == 0.0)
-                {
-                    reflCoord.x = 1.0 - reflCoord.x;
-                }
-            }
-            if (reflCoord.y > 1.0 || reflCoord.y < 0.0)
-            {
-                reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
-                if ( floor(reflCoord.y) / 2.0 == 0.0)
-                {
-                    reflCoord.y = 1.0 - reflCoord.y;
-                }
-            }
-
-            vec4 reflColor = texture2D(uSamplerForeground, reflCoord);
-            if (checkFresnel){
-                reflColor = vec4(1.0,1.0,1.0,1.0);
-            }
-            return reflColor.rgb * reflectIntensity;
-        }
-
-
-
-
-
-        vec3 refract2(vec3 n) // Photorealistic equation
-        {
-            float refractIntensity = 1.0;
-            float ior = pow(2.0, logIOR);
-            float cos1 = dot(n, vec3(0, 0, 1.0)); //vLight
-            float cos2 = sqrt(1.0 + ior * ior * ( (cos1 * cos1) - 1.0 ));
-            vec3 refract = -1.0 * ior * vec3(0, 0, 1.0) + (ior * cos1 - cos2) * n; // vec3(0,0,1) -> vLight
-            vec2 refrCoord = f_texcoord + (refract.xy / refract.z ) * (2.0 * BGdis);
-            vec4 refrColor = texture2D(uSamplerBackground, refrCoord);
-            if (checkFresnel == true)
-            {
-                refrColor = vec4(0,0,0,1.0);
-            }
-            return refrColor.rgb * refractIntensity;
-        }
-
-        vec3 refract(vec3 n) // Ergun's way
-        {
-            float refractIntensity = 1.0;
-            float s = logIOR;
-            vec3 l = vec3(0,0,-1);//eye ray
-            vec3 temp =  cross (-n, l);
-            vec3 Vsurface = cross (temp, -n) ;
-            vec3 refract;
-            if ( s > 0.0 ) refract = l * (1.0 - (-s)) + (-n) * (-s);
-            if ( s < 0.0 ) refract = l * (1.0 - (s) ) + Vsurface * ( s);
-
-
-            vec2 refrCoord = f_texcoord + (refract.xy / refract.z ) * (2.0 * BGdis);
-            vec4 refrColor = texture2D(uSamplerBackground, refrCoord);
-            if (checkFresnel == true)
-            {
-                refrColor = vec4(0,0,0,1.0);
-            }
-            return refrColor.rgb * refractIntensity;
-        }
-
-
-        vec3 fresnelBlend(vec3 n, vec3 refl, vec3 refr)
-        {
-            float cos = dot(n, vec3(0, 0, 1.0) );
-            float N = (logIOR + 1.0) / 2.0;
-            float Amin = 0.02,
-                  Amax = 0.3;
-            float Cmin = 0.4,
-                  Cmax = 1.0;
-
-            float A = Amin * ( 1.0 - N ) + Amax * N;
-            float B = 0.0;
-            float C = Cmin * ( 1.0 - N ) + Cmax * N;
-            float D = 1.0;
-
-            float num1 = sqrt( 1.0 - fresnelB * fresnelB );
-            float num2 = sqrt( 1.0 - fresnelC * fresnelC );
-            // float num1 = fresnelC ;
-            // float num2 = fresnelB ;
-
-            float fresnel;
-            float F;
-            if ( 1.0 > cos && cos > num1 ) {
-                F = ( cos - num1 ) / ( 1.0 - num1 );
-                fresnel = A * F  + B * ( 1.0 - F ) ;
-            }else if ( num1 > cos && cos > num2 ){
-                F = ( cos - num2 ) / ( num1 - num2 );
-                fresnel = B * F + C * ( 1.0 - F );
-            }else if ( num2 > cos && cos > 0.0){
-                F = ( cos - 0.0 ) / ( num2 - 0.0 );
-                fresnel = C * F + D * ( 1.0 - F );
-            }
-
-            if (fresnelIntensity > 0.0){
-                fresnel = 1.0 * fresnelIntensity + fresnel * ( 1.0 - fresnelIntensity);
-                return refl * fresnel + refr * ( 1.0 - fresnel );
-            }else{
-                fresnel = fresnel * (1.0 + fresnelIntensity);
-                return refl * fresnel + refr * ( 1.0 - fresnel );
-            }
-        }
 
         vec4 tracing_func(float s1_p, floar s1_r, vec3 s1_c,
                         float s2_p, float s2_r, vec3 s2_c,
@@ -666,24 +279,34 @@
             }
 
 
+            //compute reflection
+
+            //compute refraction
+
+            
+
             float kn = 0.5;
 
             finalColor = diffuse(cur_normal, cur_posi); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
 
             vec3 Cn = finalColor.rgb;
 
-                            
-            if(K < recur_threshold){
-                //reach threshold, stop tracing.
-                finalColor.rgb = Cn
-                return Cn;
+            if (shortest_distance == ){         
+                return Cn; //the tracing stops, for no further reflection and refraction.
             }
             else{
-                float K_rfl = K*(1-t)*f;
-                float K_rfr = K*t*f;
-                return kn * Cn + 
-                        (1 - kn) * ((1 - f) * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v) 
-                                + f * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfr, rfr_point, rfr_t,)); 
+                if(K < recur_threshold){
+                    //reach threshold, stop tracing.
+                    finalColor.rgb = Cn
+                    return Cn;
+                }
+                else{
+                    float K_rfl = K*(1-kn)*fresnel_rfl;
+                    float K_rfr = K*(1-kn)*(1-fresnel_rfl);
+                    return kn * Cn + 
+                            (1 - kn) * ((1 - f) * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v) 
+                                    + f * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfr, rfr_point, rfr_t,)); 
+                }
             }
         }
 =
@@ -745,7 +368,7 @@
 
             float _while = 1.0;
             float _threshold = 0.01;
-            float K = ;
+            float K = 1.0;
 
             finalColor.rgb = tracing_func(sphere_position1, sphere_radius1, sphere_color1, 
                                         sphere_position2, sphere_radius2, sphere_color2,
