@@ -588,17 +588,13 @@
             }
         }
 
-        vec3 tracing_func(float s1_p, floar s1_r, vec3 s1_c,
+        vec4 tracing_func(float s1_p, floar s1_r, vec3 s1_c,
                         float s2_p, float s2_r, vec3 s2_c,
                         float p1_n, float p1_p, vec3 p1_c,
                         float p2_n, float p2_p, vec3 p2_c,
                         float K, vec3 in_point, vec3 in_vec){
 
             vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
-
-            vec3 pe = 0.1*cameraDistance * vec3(cameraX, - cameraY, cameraZ); // pe is the original position of the eye camera.
-
-
 
             vec3 cur_normal; //final normal direction
             vec3 cur_posi; //final position and final distance
@@ -669,32 +665,24 @@
             }
 
 
-            //computing refraction / reflection.
+            float kn = 0.5;
 
-            finalColor = 0.7 * diffuse(cur_normal, cur_posi) + 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
-            if (lightsOnly)
-            {
-                // finalColor.rgb = finalColor.rgb;
-                finalColor.rgb = obj_color;
-            }
-            else
-            {
-                finalColor.rgb = 0.6 * finalColor.rgb + 0.4 * obj_color;
-            }
+            finalColor = diffuse(cur_normal, cur_posi); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
 
-            vec3 Cn = finalColor;
+            vec3 Cn = finalColor.rgb;
 
                             
-            if(K > recur_threshold){
+            if(K < recur_threshold){
                 //reach threshold, stop tracing.
+                finalColor.rgb = Cn
                 return Cn;
             }
             else{
                 float K_rfl = K*(1-t)*f;
                 float K_rfr = K*t*f;
-                return (1-t)*Cn + 
-                        t * ((1 - f) * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v) 
-                            + f * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfr, rfr_point, rfr_t,)); 
+                return kn * Cn + 
+                        (1 - kn) * ((1 - f) * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v) 
+                                + f * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfr, rfr_point, rfr_t,)); 
             }
         }
 =
@@ -730,59 +718,6 @@
             vec3 cur_normal; //final normal direction
             vec3 cur_posi; //final position and final distance
 
-            //plane1
-            //vec3 plane_ni = normalize(vec3(1., 0., 0.)); // plane norm direction.
-            //vec3 plane_color = vec3(0.5, 0.0, 0.);
-            //vec3 plane_position = vec3(0., 0., 0.); //plane position
-
-            //float plane_d = plane_intersect_solver(plane_position, plane_ni, pe, npe);
-            //vec3 plane_norm = plane_ni;
-
-            //plane2
-            vec3 plane_ni_2 = vec3(0., 0., 1.); // plane norm direction.
-            vec3 plane_color_2 = vec3(0.0, 0., 0.5); //
-            vec3 plane_position_2 = vec3(0., 0., 0.); //plane position
-
-            float plane_d_2 = plane_intersect_solver(plane_position_2, plane_ni_2, pe, npe);
-            vec3 plane_norm_2 = plane_ni_2;
-
-            //plane3
-            vec3 plane_ni_3 = vec3(0., -1., 0.); // plane norm direction.
-            vec3 plane_color_3 = vec3(0., 0.5, 0.0); //
-            vec3 plane_position_3 = vec3(0., 10., 0.); //plane position
-
-            float plane_d_3 = plane_intersect_solver(plane_position_3, plane_ni_3, pe, npe);
-            vec3 plane_norm_3 = plane_ni_3;
-
-            //sphere
-            vec3 sphere_position = vec3(5.0, 8.0, 5.0); // plane norm direction.
-            vec3 sphere_color = vec3(0., 0.5, 0.5);
-            float sphere_radius = 1.0;
-
-            float sphere_d = sphere_intersect_solver(sphere_position, sphere_radius, pe, npe);
-            vec3 sphere_norm = sphere_normal_solver(sphere_position, sphere_radius, pe, npe);
-            
-
-            //sphere2
-            vec3 sphere_position2 = vec3(5.0, 8.0, 1.0); // plane norm direction.
-            vec3 sphere_color2 = vec3(0.5, 0., 0.5);
-            float sphere_radius2 = 1.0;
-
-            float sphere_d2 = sphere_intersect_solver(sphere_position2, sphere_radius2, pe, npe);
-            vec3 sphere_norm2 = sphere_normal_solver(sphere_position2, sphere_radius2, pe, npe);
-            
-
-            //Cyliner.
-            //vec3 v2 = vec3(0, 0., 1.);
-            //vec3 vup = vec3(1., 0., 0.0);
-            //vec3 cylinder_color = vec3(0.5, 0., 0.5);
-            //vec3 cylinder_position = vec3(1.0, 1.0, 1.5);
-
-            //float a02 = 1. ;
-            //float a12 = 1. ;
-
-            //float cylinder_d = Cylinder_intersect_solver(1.5, 0.5, a02, a12, cylinder_position, pe, npe, v2, vup);
-            //vec3 cylinder_norm = Cylinder_normal_solver(1.5, 0.5, a02, a12, cylinder_position, pe, npe, v2, vup);
 
             //Choice
             float shortest_distance = 4096.0 ;
@@ -791,46 +726,6 @@
 
             float _while = 1.0;
             float _threshold = 0.01;
-
-
-            if (shortest_distance > plane_d_2) {
-                shortest_distance = plane_d_2;
-                vec3 ip = pe + shortest_distance*npe;
-                float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
-                float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
-                obj_color = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
-                cur_normal = plane_norm_2;
-                cur_posi = pe + plane_d_2 * npe;
-            }
-
-            if (shortest_distance > plane_d_3) {
-                shortest_distance = plane_d_3;
-                // define the mapping color and mapping normal vector here haha
-                vec3 ip = pe + shortest_distance*npe;
-                float tx = (ip.x - float(int(ip.x / 4.)) * 4.) / 4.;
-                float ty = (ip.z - float(int(ip.z / 2.)) * 2.) / 2.;
-                obj_color = texture2D(uSamplerForeground, vec2(tx, ty)).rgb;
-                cur_normal = plane_norm_3;
-                cur_posi = pe + plane_d_3 * npe;
-            }
-
-
-            if (shortest_distance > sphere_d) {
-                shortest_distance = sphere_d;
-                obj_color = sphere_color;
-                cur_normal = sphere_norm;
-                cur_posi = pe + sphere_d * npe;
-            }
-
-            if (shortest_distance > sphere_d2) {
-                shortest_distance = sphere_d2;
-                obj_color = sphere_color2;
-                cur_normal = sphere_norm2;
-                cur_posi = pe + sphere_d2 * npe;
-            }
-
-
-
 
             // init shadow to zeros
             for (int i = 0; i < max_lights; i++)
