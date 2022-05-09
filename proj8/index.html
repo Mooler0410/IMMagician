@@ -261,23 +261,24 @@
         float fresnelBlend(vec3 n, vec3 in_vec){
             float cos = dot(n, in_vec );
             float fresnel;
-            if (realVersion) {
-                float ior = pow(2.0, logIOR);
-                ior = 1.0 / ior;
+
+            float ior = pow(2.0, logIOR);
+            ior = 1.0 / ior;
         
-                float square = 1.0 - ior * ior * (1.0 - cos * cos);
-                if (square < 0.0) {
-                    square = 0.0;
-                }
-        
-                float rs = (ior * cos - square) / (ior * cos + square);
-                rs = rs * rs;
-        
-                float rp = (ior * square - cos) / (ior * square + cos);
-                rp = rp * rp;
-        
-                fresnel = (rs + rp) / 2.0;
+            float square = 1.0 - ior * ior * (1.0 - cos * cos);
+            if (square < 0.0) {
+                square = 0.0;
             }
+        
+            float rs = (ior * cos - square) / (ior * cos + square);
+            rs = rs * rs;
+        
+            float rp = (ior * square - cos) / (ior * square + cos);
+            rp = rp * rp;
+        
+            fresnel = (rs + rp) / 2.0;
+            
+
             if (fresnelIntensity > 0.0){
                 fresnel = 1.0 * fresnelIntensity + fresnel * ( 1.0 - fresnelIntensity);
             }
@@ -287,12 +288,11 @@
             return fresnel;
         }
 
-        vec4 tracing_func(vec3 s1_p, float s1_r, vec3 s1_c,
+        vec3 tracing_func(vec3 s1_p, float s1_r, vec3 s1_c,
                         vec3 s2_p, float s2_r, vec3 s2_c,
                         vec3 p1_n, vec3 p1_p, vec3 p1_c,
                         vec3 p2_n, vec3 p2_p, vec3 p2_c,
-                        float K, vec3 in_point, vec3 in_vec,
-                        bool check_fresnel){
+                        float K, vec3 in_point, vec3 in_vec){
 
             vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color.
             float recur_threshold = 1.0;
@@ -368,7 +368,7 @@
 
             float kn = 0.5;
             finalColor = diffuse(cur_normal, cur_posi); //+ 0.3 * vec4(spec(cur_normal, npe, cur_posi), 0.);
-            finalColor = 0.6 * finalColor + 0.4 * obj_color;
+            finalColor.rgb = 0.6 * finalColor.rgb + 0.4 * obj_color; //Line 290
             vec3 Cn = finalColor.rgb;
 
 
@@ -391,28 +391,32 @@
                     if(rfr_t.r < - 20.0){
                         //which means total reflection.
                         //total relection.
-                        float K_rfl = K*(1-kn);
-                        return kn * Cn +  (1 - kn)  * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v); 
+                        float K_rfl = K*(1.0-kn);  //Line 313
+                        return kn * Cn +  (1.0 - kn)  * tracing_func(s1_p, s1_r, s1_c, s2_p, s2_r, s2_c, p1_n, p1_p, p1_c, p2_n, p2_p, p2_c, K_rfl, cur_posi, rfl_v); 
                     }
                     else{
-                        if(transparent > 0){
-                            float fresnel_rfl = fresnelBlend(cur_normal, in_vec);
-                            float K_rfl = K*(1-kn)*fresnel_rfl;
-                            float K_rfr = K*(1-kn)*(1-fresnel_rfl);
+                        if(transparent > 0.0){
+                            float fresnel_rfl = 0.5;//set a default value for no fresnel.
+                            if(realVersion){
+                                float fresnel_rfl = fresnelBlend(cur_normal, in_vec);
+                            }
+
+                            float K_rfl = K*(1.0 - kn)*fresnel_rfl;
+                            float K_rfr = K*(1.0 - kn)*(1.0 - fresnel_rfl);
                             return kn * Cn + 
-                            (1 - kn) * ((1 - f) * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v) 
-                                    + f * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfr, rfr_point, rfr_t,));
+                            (1.0 - kn) * ((1.0 - fresnel_rfl) * tracing_func(s1_p, s1_r, s1_c, s2_p, s2_r, s2_c, p1_n, p1_p, p1_c, p2_n, p2_p, p2_c, K_rfl, cur_posi, rfl_v) 
+                                    + fresnel_rfl * tracing_func(s1_p, s1_r, s1_c, s2_p, s2_r, s2_c, p1_n, p1_p, p1_c, p2_n, p2_p, p2_c, K_rfr, cur_posi, rfr_t));
                         }
                         else{
                             //not a transparent object.
-                            float K_rfl = K*(1-kn);
-                            return kn * Cn +  (1 - kn)  * tracing_func(float s1_p, floar s1_r, s2_p, s2_r, p1_n, p1_p, p2_n, p2_p, K_rfl, rfl_point, rfl_v); 
+                            float K_rfl = K*(1.0 - kn);
+                            return kn * Cn +  (1.0 - kn)  * tracing_func(s1_p, s1_r, s1_c, s2_p, s2_r, s2_c, p1_n, p1_p, p1_c, p2_n, p2_p, p2_c, K_rfl, cur_posi, rfl_v); 
                         }
                     }
                 }
             }
         }
-=
+
 
         void main()
         {
@@ -462,9 +466,9 @@
             float K = 1.0;
             finalColor.rgb = tracing_func(sphere_position1, sphere_radius1, sphere_color1, 
                                         sphere_position2, sphere_radius2, sphere_color2,
-                                        plane_norm_1, plane_position_1, plane_color_1,
-                                        plane_norm_2, plane_position_2, plane_color_2,
-                                        K, pe, npe, check_fresnel);
+                                        plane_ni_1, plane_position_1, plane_color_1,
+                                        plane_ni_2, plane_position_2, plane_color_2,
+                                        K, pe, npe);
             
             gl_FragColor = finalColor;
         }
