@@ -877,3 +877,118 @@
                 return Cn; 
             }
         }
+
+        vec3 tracing_func_iter(vec3 s1_p, float s1_r, vec3 s1_c,
+                            vec3 s2_p, float s2_r, vec3 s2_c,
+                            vec3 p1_n, vec3 p1_p, vec3 p1_c,
+                            vec3 p2_n, vec3 p2_p, vec3 p2_c,
+                            float K, vec3 in_point, vec3 in_vec){
+
+            vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color. no hitting.
+            float recur_threshold = 0.01;
+
+            vec3 cur_normal; //final normal direction
+            vec3 in_posi = in_point; //final position and final distance
+            vec3 cur_posi;
+            vec3 cur_in_vec = in_vec; 
+            
+            float current_K = K;
+            float kn = 0.0; // diffuse ratio.
+
+            for(int i = 0; i < 10; i++){
+                vec3 current_color = vec3(0.0, 0.0, 0.0);
+
+                //plane1
+                float plane_d_1 = plane_intersect_solver(p1_p, p1_n, in_posi, cur_in_vec); //line 223.
+                vec3 plane_norm_1 = p1_n;
+                //plane2
+                //float plane_d_2 = plane_intersect_solver(p2_p, p2_n, in_point, in_vec);
+                //vec3 plane_norm_2 = p2_n;
+                //sphere1
+                float sphere_d_1 = sphere_intersect_solver(s1_p, s1_r, in_posi, cur_in_vec);
+                vec3 sphere_norm_1 = sphere_normal_solver(s1_p, s1_r, in_posi, in_vec);
+                //sphere2
+                float sphere_d_2 = sphere_intersect_solver(s2_p, s2_r, in_posi, cur_in_vec);
+                vec3 sphere_norm_2 = sphere_normal_solver(s2_p, s2_r, in_posi, in_vec);
+
+                vec3 obj_color;
+
+                int transparent = -1; // 0: ground, no further reflection or refraction. 1: transparent sphere rafra + refle. 2: untransparent sphere: only refle.
+                float shortest_distance = 4096.0 ;
+                //sphere 1 is transparent.
+                //sphere 2 is not transparent.
+                //all the plane is not transparent.
+                
+                
+                if (shortest_distance > plane_d_1) {
+                    shortest_distance = plane_d_1;
+                    vec3 ip = in_posi + shortest_distance * in_vec;
+                    float tx = (ip.x - float(int(ip.x / 2.)) * 2.) / 2.;
+                    float ty = (ip.y - float(int(ip.y / 4.)) * 4.) / 4.;
+                    obj_color = texture2D(uSamplerColor1, vec2(tx, ty)).rgb;
+                    cur_normal = plane_norm_1;
+                    cur_posi = in_posi + plane_d_1 * cur_in_vec;
+                    transparent = 0;
+                }
+                if (shortest_distance > sphere_d_1) {
+                    shortest_distance = sphere_d_1;
+                    obj_color = s1_c;
+                    cur_normal = sphere_norm_1;
+                    cur_posi = in_posi + sphere_d_1 * cur_in_vec;
+                    transparent = 1;
+                }
+                if (shortest_distance > sphere_d_2) {
+                    shortest_distance = sphere_d_2;
+                    obj_color = s2_c;
+                    cur_normal = sphere_norm_2;
+                    cur_posi = in_posi + sphere_d_2 * cur_in_vec;
+                    transparent = 2;
+                }
+
+
+                if(shortest_distance == 4096.0){
+                    current_color = 0.6 * current_color + 0.4 * obj_color; 
+                    finalColor.rgb = kn * finalColor.rgb + (1-kn)*current_color;
+                    break;
+                }
+                else{   
+                    current_color = diffuse(cur_normal, cur_posi).rgb; 
+                    current_color = 0.6 * current_color + 0.4 * obj_color; 
+
+                    finalColor.rgb = kn * finalColor.rgb + (1-kn)*current_color;
+                    current_K = current_K * (1-kn);
+
+                    if(K > recur_threshold){
+                        if(transparent == 2){
+                            vec3 rfl_v = reflect_2(cur_normal, cur_in_vec);
+                            cur_in_vec = rfl_v;
+                            in_posi = cur_posi;
+                            //reflection
+                        }
+                        else if(transparent == 1){
+                            vec3 rfr_t = refract(cur_normal, in_vec);
+                            if(rfr_t.r < - 20.0){
+                                //Total reflection.
+                                vec3 rfl_v = reflect_2(cur_normal, cur_in_vec);
+                                cur_in_vec = rfl_v;
+                                in_posi = cur_posi;
+                            }
+                            else{
+                                cur_in_vec = rfl_v;
+                                in_posi = cur_posi;
+                            }
+                            //refraction
+                        }
+                        else if(transparent == 0){
+                            //ground
+                            break;
+                        }
+                    }
+                    else{
+                        //Next step too small.
+                        break;
+                    }
+                }
+
+            }
+        }
