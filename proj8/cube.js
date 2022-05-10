@@ -116,18 +116,18 @@ function initParameters(){
     reflection_degree_val = 1;
 
     //Initialize Camera;
-    camera_dis = 30;
+    camera_dis = 108;
 
-    camera_x = 0.5;
-    camera_y = 0.5;
-    camera_z = 0.5;
+    camera_x = 0.;
+    camera_y = 0.06;
+    camera_z = 0.27;
 
     view_x = 0;
     view_y = 0;
     view_z = 0;
 
     //refraction parameters
-    logIOR = 0.25;//[-1, 1]
+    logIOR = 0.6;//[-1, 1]
     BGdis = 0.6;
 
     //reflection parameters
