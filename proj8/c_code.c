@@ -154,8 +154,8 @@
         }
 
 
-        vec3 refract(vec3 n, vec3 in_vec){ // Photorealistic equation
-            float ior = pow(2.0, logIOR);
+        vec3 refract(vec3 n, vec3 in_vec, float eta){ // Photorealistic equation
+            float ior = pow(2.0, eta);
             float cos1 = dot(n, in_vec); //vLight
             float delta = 1.0 + ior * ior * ( (cos1 * cos1) - 1.0 );
             vec3 refract_n;
@@ -884,16 +884,22 @@
                             vec3 p2_n, vec3 p2_p, vec3 p2_c,
                             float K, vec3 in_point, vec3 in_vec){
 
+            
+
             vec4 finalColor = vec4(0.0, 0.0, 0.0, 1.0); // default color. no hitting.
             float recur_threshold = 0.01;
+
+            int cur_material = 0; //cur_material: 0: from air into the ball; 1: from ball into the air.
 
             vec3 cur_normal; //final normal direction
             vec3 in_posi = in_point; //final position and final distance
             vec3 cur_posi;
             vec3 cur_in_vec = in_vec; 
             
-            float current_K = K;
-            float kn = 0.0; // diffuse ratio.
+            float kn = K; // diffuse ratio. initialized as 0.0
+            float current_K2 = 1-kn;
+            float current_K1 = kn; 
+
 
             for(int i = 0; i < 10; i++){
                 vec3 current_color = vec3(0.0, 0.0, 0.0);
@@ -948,15 +954,17 @@
 
                 if(shortest_distance == 4096.0){
                     current_color = 0.6 * current_color + 0.4 * obj_color; 
-                    finalColor.rgb = kn * finalColor.rgb + (1-kn)*current_color;
+                    finalColor.rgb = finalColor.rgb + current_K2 *current_color;
+                    finalColor.rgb = current_K1 * finalColor.rgb;
                     break;
                 }
-                else{   
+                else{
+
                     current_color = diffuse(cur_normal, cur_posi).rgb; 
                     current_color = 0.6 * current_color + 0.4 * obj_color; 
 
-                    finalColor.rgb = kn * finalColor.rgb + (1-kn)*current_color;
-                    current_K = current_K * (1-kn);
+                    finalColor.rgb = finalColor.rgb + current_K2 *current_color;
+                    current_K2 = current_K2 * (1-kn);
 
                     if(K > recur_threshold){
                         if(transparent == 2){
@@ -966,10 +974,16 @@
                             //reflection
                         }
                         else if(transparent == 1){
-                            vec3 rfr_t = refract(cur_normal, in_vec);
+                            if(currentLight == 0){
+                                vec3 rfr_t = refract(cur_normal, in_vec, logIOR);
+                            }
+                            else{
+                                vec3 rfr_t = refract(cur_normal, in_vec, 1/logIOR);
+                            }
+                            //Need to define the logIOR. logIOR or 1/logIOR.
                             if(rfr_t.r < - 20.0){
                                 //Total reflection.
-                                vec3 rfl_v = reflect_2(cur_normal, cur_in_vec);
+                                vec3 rfl_v = reflect_2(cur_normal, cur_in_vec, );
                                 cur_in_vec = rfl_v;
                                 in_posi = cur_posi;
                             }
@@ -981,10 +995,12 @@
                         }
                         else if(transparent == 0){
                             //ground
+                            finalColor.rgb = current_K1 * finalColor.rgb;
                             break;
                         }
                     }
                     else{
+                        finalColor.rgb = current_K1 * finalColor.rgb;
                         //Next step too small.
                         break;
                     }

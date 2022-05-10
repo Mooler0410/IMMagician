@@ -285,56 +285,10 @@
 
 
 
-        // vec3 reflect1(vec3 n)
-        // {
-
-        //     float reflectIntensity = 1.0;
-
-
-        //     float s = logIOR;
-        //     vec3 l = vec3(0,0,-1);//eye ray
-        //     vec3 temp =  cross (-n, l);
-        //     vec3 Vsurface = cross (temp, -n) ;
-        //     vec3 reflect;
-        //     vec3 origReflect = - 1.0 * vec3(0.0, 0.0, 1.0) + 2.0 * dot(n, vec3(0.0, 0.0, 1.0)) * n;
-
-        //     if ( s >= 0.0 ) reflect = origReflect * (1.0 - (-s)) + (n) * (-s);
-        //     if ( s < 0.0 ) reflect = origReflect * (1.0 - (s) ) + Vsurface * ( s);
-
-
-
-        //     vec2 reflCoord = f_texcoord + (reflect.xy / reflect.z) * FGdis + vec2( -mouseXYcopy[0].x * 0.5, mouseXYcopy[0].y * 0.5) ;//+ vLight0.xy ;
-        //     vec2 v = (reflCoord - vec2(0.5, 0.5)) / 0.5;
-        //         reflCoord.x = v.x * ( 1.0 - FGscaleX ) - FGshiftX + 0.5;
-        //         reflCoord.y = v.y * ( 1.0 - FGscaleY ) - FGshiftY + 0.5;
-        //         if (reflCoord.x > 1.0 || reflCoord.x < 0.0)
-        //         {
-        //             reflCoord.x = reflCoord.x - float(floor(reflCoord.x));
-        //             if ( floor(reflCoord.x) / 2.0 == 0.0)
-        //             {
-        //                 reflCoord.x = 1.0 - reflCoord.x;
-        //             }
-        //         }
-        //         if (reflCoord.y > 1.0 || reflCoord.y < 0.0)
-        //         {
-        //             reflCoord.y = reflCoord.y - float(floor(reflCoord.y));
-        //             if ( floor(reflCoord.y) / 2.0 == 0.0)
-        //             {
-        //                 reflCoord.y = 1.0 - reflCoord.y;
-        //             }
-        //         }
-        //     vec4 reflColor = texture2D(uSamplerForeground, reflCoord) ;
-
-        //     if (checkFresnel )
-        //     {
-        //         reflColor = vec4(1.0,1.0,1.0,1.0);
-        //     }
-        //     return reflColor.rgb * reflectIntensity;
-        // }
 
 
         // Reflected texture is treated as if it is on a hemisphere 1 unit
-            // away from the surface.
+        // away from the surface.
         vec3 reflect2(vec3 n)
         {
 
